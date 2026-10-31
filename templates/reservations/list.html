@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Book Reservations - {{ library_name }}{% endblock %}
+{% block page_title %}Book Reservation Queue Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Book Reservation Requests &amp; Queue</h4>
+            <p class="text-muted small mb-0">Manage scholar reservations for out-of-stock and high-demand volumes.</p>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card card-custom mb-4 p-3">
+        <form method="GET" action="{{ url_for('reservations.list_reservations') }}" class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control form-control-custom" placeholder="Search by reservation code, book title, student..." value="{{ search }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select form-select-custom">
+                    <option value="">All Statuses</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending In Queue</option>
+                    <option value="notified" {% if status == 'notified' %}selected{% endif %}>Notified &amp; Ready for Pickup</option>
+                    <option value="fulfilled" {% if status == 'fulfilled' %}selected{% endif %}>Fulfilled Loans</option>
+                    <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">Filter</button>
+                <a href="{{ url_for('reservations.list_reservations') }}" class="btn btn-outline-custom">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Queue Pos</th>
+                        <th>Book Title</th>
+                        <th>Student Requester</th>
+                        <th>Reservation Date</th>
+                        <th>Current Availability</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for res in reservations.items %}
+                    <tr>
+                        <td><span class="badge bg-dark">{{ res.reservation_code }}</span></td>
+                        <td>
+                            <span class="badge bg-primary-subtle text-primary fw-bold" style="font-size: 0.85rem;">
+                                #{{ res.queue_position }} in Queue
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('books.details', book_id=res.book_id) }}" class="fw-bold text-dark text-decoration-none">
+                                {{ res.book.title }}
+                            </a>
+                            <div class="small text-muted">ISBN: {{ res.book.isbn }}</div>
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ res.student.name }}</div>
+                            <small class="text-muted">{{ res.student.student_id }} | {{ res.student.phone }}</small>
+                        </td>
+                        <td>{{ res.reservation_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            {% if res.book.available_copies > 0 %}
+                            <span class="badge bg-success">{{ res.book.available_copies }} on Shelf</span>
+                            {% else %}
+                            <span class="badge bg-danger">0 Available</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if res.status == 'pending' %}
+                            <span class="badge-status badge-status-warning">Pending</span>
+                            {% elif res.status == 'notified' %}
+                            <span class="badge-status badge-status-info">Ready for Pickup</span>
+                            {% elif res.status == 'fulfilled' %}
+                            <span class="badge-status badge-status-success">Fulfilled</span>
+                            {% else %}
+                            <span class="badge-status badge-status-secondary">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if res.status in ('pending', 'notified') %}
+                            <form method="POST" action="{{ url_for('reservations.fulfill_reservation', res_id=res.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Fulfill and Issue Book">
+                                    <i class="bi bi-check2-circle me-1"></i> Fulfill
+                                </button>
+                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal{{ res.id }}" title="Cancel">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+
+                            <!-- Cancel Modal -->
+                            <div class="modal fade" id="cancelModal{{ res.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title">Cancel Reservation</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ url_for('reservations.cancel_reservation', res_id=res.id) }}">
+                                            <div class="modal-body p-4 text-start">
+                                                <p>Are you sure you want to cancel reservation <strong>{{ res.reservation_code }}</strong> for <strong>{{ res.student.name }}</strong>?</p>
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Cancellation Reason</label>
+                                                    <input type="text" name="cancel_reason" class="form-control" placeholder="e.g. Expired pickup window, student request..." required>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                                                <button type="submit" class="btn btn-danger btn-sm px-4">Confirm Cancellation</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">None</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No reservations found in queue.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if reservations.pages > 1 %}
+        <div class="p-3 border-top d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing page {{ reservations.page }} of {{ reservations.pages }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if reservations.has_prev %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('reservations.list_reservations', page=reservations.prev_num, q=search, status=status) }}">Previous</a></li>
+                    {% endif %}
+                    {% for p in reservations.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if p %}
+                            <li class="page-item {% if p == reservations.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('reservations.list_reservations', page=p, q=search, status=status) }}">{{ p }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if reservations.has_next %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('reservations.list_reservations', page=reservations.next_num, q=search, status=status) }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

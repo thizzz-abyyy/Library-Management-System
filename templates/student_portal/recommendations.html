@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}AI Recommendations - {{ library_name }}{% endblock %}
+{% block page_title %}AI-Curated Book Recommendations{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="card card-custom p-4 mb-4" style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(59, 130, 246, 0.02) 100%);">
+        <div class="d-flex align-items-center gap-3">
+            <div class="kpi-icon-box kpi-icon-primary" style="font-size: 2rem;">
+                <i class="bi bi-robot"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-1">Smart Academic Recommendation Engine</h4>
+                <p class="text-muted small mb-0">
+                    Recommendations are powered by hybrid content and collaborative filtering heuristics:
+                    matching your academic major, past reading history, and high-frequency co-borrowing trends across scholars.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommended Books Grid -->
+    <div class="row g-4 mb-4">
+        {% for book in books %}
+        <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6">
+            <div class="book-card">
+                <div class="book-cover-wrap position-relative">
+                    <img src="{{ url_for('uploaded_file', filename='book_covers/' + book.cover_image) if book.cover_image != 'default_book_cover.png' else url_for('static', filename='images/default_book_cover.png') }}" alt="{{ book.title }}" class="book-cover-img" onerror="this.src='/static/images/default_book_cover.png'">
+                    <span class="badge bg-primary position-absolute top-0 end-0 m-2 shadow-sm">
+                        <i class="bi bi-stars text-warning me-1"></i> AI Pick
+                    </span>
+                </div>
+                <div class="book-card-body">
+                    <div class="book-category-tag">{{ book.category_name }}</div>
+                    <h5 class="book-title" title="{{ book.title }}">{{ book.title }}</h5>
+                    <div class="book-author">By {{ book.author }}</div>
+                    
+                    <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
+                        <span class="small {% if book.is_available %}text-success{% else %}text-danger{% endif %} fw-bold">
+                            {{ book.available_copies }} copies left
+                        </span>
+                        <a href="{{ url_for('books.details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">
+                            View Book
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

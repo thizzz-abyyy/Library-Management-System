@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Book Issues &amp; Circulation History - {{ library_name }}{% endblock %}
+{% block page_title %}Book Circulation Desk &amp; Issue History{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Circulation Transactions</h4>
+            <p class="text-muted small mb-0">Track all active and past book checkout loans, due dates, and return statuses.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('issues.issue_book') }}" class="btn btn-primary-custom">
+                <i class="bi bi-box-arrow-up-right"></i> Issue Book
+            </a>
+            <a href="{{ url_for('issues.return_book') }}" class="btn btn-outline-custom">
+                <i class="bi bi-box-arrow-in-down-left"></i> Return Book
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card card-custom mb-4 p-3">
+        <form method="GET" action="{{ url_for('issues.list_issues') }}" class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control form-control-custom" placeholder="Search by Issue Code, Book Title, Student ID..." value="{{ search }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select form-select-custom">
+                    <option value="">All Statuses</option>
+                    <option value="issued" {% if status == 'issued' %}selected{% endif %}>Currently Issued</option>
+                    <option value="overdue" {% if status == 'overdue' %}selected{% endif %}>Overdue Loans Only</option>
+                    <option value="returned" {% if status == 'returned' %}selected{% endif %}>Returned</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">Filter</button>
+                <a href="{{ url_for('issues.list_issues') }}" class="btn btn-outline-custom">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Issues Table -->
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Issue Code</th>
+                        <th>Book Information</th>
+                        <th>Student Borrower</th>
+                        <th>Checkout Date</th>
+                        <th>Due Date</th>
+                        <th>Return Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in issues.items %}
+                    <tr>
+                        <td><span class="fw-bold text-primary">{{ issue.issue_code }}</span></td>
+                        <td>
+                            <div class="fw-bold">{{ issue.book.title }}</div>
+                            <small class="text-muted">ISBN: {{ issue.book.isbn }}</small>
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ issue.student.name }}</div>
+                            <small class="text-muted">ID: {{ issue.student.student_id }}</small>
+                        </td>
+                        <td>{{ issue.issue_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if issue.status == 'issued' and issue.is_overdue %}
+                            <span class="text-danger fw-bold"><i class="bi bi-clock-fill me-1"></i> {{ issue.due_date.strftime('%Y-%m-%d') }}</span>
+                            {% else %}
+                            {{ issue.due_date.strftime('%Y-%m-%d') }}
+                            {% endif %}
+                        </td>
+                        <td>{{ issue.return_date.strftime('%Y-%m-%d') if issue.return_date else '-' }}</td>
+                        <td>
+                            {% if issue.status == 'returned' %}
+                            <span class="badge-status badge-status-success">Returned</span>
+                            {% elif issue.is_overdue %}
+                            <span class="badge-status badge-status-danger">{{ issue.overdue_days }} Days Late</span>
+                            {% else %}
+                            <span class="badge-status badge-status-info">Active</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if issue.status != 'returned' %}
+                            <a href="{{ url_for('issues.return_book', issue_id=issue.id) }}" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-box-arrow-in-down-left me-1"></i> Process Return
+                            </a>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary small py-2">Closed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No circulation records match the query.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if issues.pages > 1 %}
+        <div class="p-3 border-top d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing page {{ issues.page }} of {{ issues.pages }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if issues.has_prev %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('issues.list_issues', page=issues.prev_num, q=search, status=status) }}">Previous</a></li>
+                    {% endif %}
+                    {% for p in issues.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if p %}
+                            <li class="page-item {% if p == issues.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('issues.list_issues', page=p, q=search, status=status) }}">{{ p }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if issues.has_next %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('issues.list_issues', page=issues.next_num, q=search, status=status) }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}My Borrowed Books - {{ library_name }}{% endblock %}
+{% block page_title %}My Borrowed Books &amp; Active Reservations{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Active Borrowed Books -->
+    <div class="card card-custom p-0 overflow-hidden mb-5">
+        <div class="p-3 border-bottom bg-light-subtle d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0"><i class="bi bi-book-half text-primary me-2"></i> Currently Borrowed Books ({{ active_issues|length }})</h5>
+            <small class="text-muted">Return by due date to avoid overdue charges</small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Issue Code</th>
+                        <th>Book Title</th>
+                        <th>Author</th>
+                        <th>Issued On</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Shelf Location</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in active_issues %}
+                    <tr>
+                        <td><span class="fw-bold text-primary">{{ issue.issue_code }}</span></td>
+                        <td>
+                            <a href="{{ url_for('books.details', book_id=issue.book_id) }}" class="fw-bold text-dark text-decoration-none">{{ issue.book.title }}</a>
+                        </td>
+                        <td>{{ issue.book.author }}</td>
+                        <td>{{ issue.issue_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if issue.is_overdue %}
+                            <span class="text-danger fw-bold"><i class="bi bi-clock-fill me-1"></i> {{ issue.due_date.strftime('%Y-%m-%d') }}</span>
+                            {% else %}
+                            <span class="fw-bold text-success">{{ issue.due_date.strftime('%Y-%m-%d') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if issue.is_overdue %}
+                            <span class="badge bg-danger">{{ issue.overdue_days }} Days Late</span>
+                            {% else %}
+                            <span class="badge bg-info">Active Loan</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end"><span class="small text-muted"><i class="bi bi-geo-alt"></i> {{ issue.book.shelf_location or 'Main Reading Room' }}</span></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">You do not have any books currently borrowed.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Active Reservations -->
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="p-3 border-bottom bg-light-subtle d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0"><i class="bi bi-bookmark-star-fill text-warning me-2"></i> My Book Reservations Queue ({{ reservations|length }})</h5>
+            <small class="text-muted">You will be notified when books become available</small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Queue Position</th>
+                        <th>Book Title</th>
+                        <th>Reserved Date</th>
+                        <th>Current Availability</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for res in reservations %}
+                    <tr>
+                        <td><code>{{ res.reservation_code }}</code></td>
+                        <td><span class="badge bg-primary-subtle text-primary">#{{ res.queue_position }} in Queue</span></td>
+                        <td>
+                            <a href="{{ url_for('books.details', book_id=res.book_id) }}" class="fw-bold text-dark text-decoration-none">{{ res.book.title }}</a>
+                        </td>
+                        <td>{{ res.reservation_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            {% if res.book.available_copies > 0 %}
+                            <span class="badge bg-success">{{ res.book.available_copies }} on Shelf</span>
+                            {% else %}
+                            <span class="badge bg-danger">0 on Shelf</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if res.status == 'pending' %}
+                            <span class="badge-status badge-status-warning">Pending</span>
+                            {% elif res.status == 'notified' %}
+                            <span class="badge-status badge-status-success">Ready for Pickup!</span>
+                            {% elif res.status == 'fulfilled' %}
+                            <span class="badge-status badge-status-info">Fulfilled</span>
+                            {% else %}
+                            <span class="badge-status badge-status-secondary">Cancelled</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">You do not have any pending book reservations.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

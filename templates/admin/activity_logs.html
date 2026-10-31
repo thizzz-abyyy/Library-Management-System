@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Audit Logs - {{ library_name }}{% endblock %}
+{% block page_title %}Security Audit &amp; System Activity Logs{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="card card-custom mb-4">
+        <form method="GET" action="{{ url_for('admin.activity_logs') }}" class="row g-3 align-items-center">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control form-control-custom" placeholder="Search by action, user, or details..." value="{{ search }}">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select name="user_type" class="form-select form-select-custom">
+                    <option value="">All User Roles</option>
+                    <option value="admin" {% if user_type == 'admin' %}selected{% endif %}>Admin Actions</option>
+                    <option value="librarian" {% if user_type == 'librarian' %}selected{% endif %}>Librarian Circulation</option>
+                    <option value="student" {% if user_type == 'student' %}selected{% endif %}>Student Operations</option>
+                    <option value="system" {% if user_type == 'system' %}selected{% endif %}>System Events</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">Filter</button>
+                <a href="{{ url_for('admin.activity_logs') }}" class="btn btn-outline-custom">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Timestamp (UTC)</th>
+                        <th>User Role</th>
+                        <th>User Name</th>
+                        <th>Action Performed</th>
+                        <th>Transaction Details</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs.items %}
+                    <tr>
+                        <td class="text-muted small">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>
+                            {% if log.user_type == 'admin' %}
+                            <span class="badge bg-danger-subtle text-danger">ADMIN</span>
+                            {% elif log.user_type == 'librarian' %}
+                            <span class="badge bg-primary-subtle text-primary">LIBRARIAN</span>
+                            {% elif log.user_type == 'student' %}
+                            <span class="badge bg-info-subtle text-info">STUDENT</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">SYSTEM</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ log.user_name or 'System' }}</td>
+                        <td><span class="badge-status badge-status-secondary">{{ log.action }}</span></td>
+                        <td><span class="small">{{ log.details or 'None' }}</span></td>
+                        <td><code>{{ log.ip_address or '127.0.0.1' }}</code></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No activity records match the filter criteria.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if logs.pages > 1 %}
+        <div class="p-3 border-top d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing page {{ logs.page }} of {{ logs.pages }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if logs.has_prev %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.activity_logs', page=logs.prev_num, q=search, user_type=user_type) }}">Previous</a></li>
+                    {% endif %}
+                    {% for p in logs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if p %}
+                            <li class="page-item {% if p == logs.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin.activity_logs', page=p, q=search, user_type=user_type) }}">{{ p }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if logs.has_next %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.activity_logs', page=logs.next_num, q=search, user_type=user_type) }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

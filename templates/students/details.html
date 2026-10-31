@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student.name }} - Student Details{% endblock %}
+{% block page_title %}Student Borrower Profile{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Student Header Card -->
+    <div class="card card-custom p-4 mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <img src="{{ url_for('static', filename='images/default_avatar.png') }}" alt="" class="rounded-circle border" style="width: 70px; height: 70px; object-fit: cover;">
+                <div>
+                    <h4 class="fw-bold mb-1">{{ student.name }}</h4>
+                    <div class="text-muted small">
+                        <span class="badge bg-dark me-2">{{ student.student_id }}</span>
+                        {{ student.department }} | {{ student.academic_year }}
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('students.id_card', student_id=student.id) }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-person-vcard me-1"></i> Print ID Card
+                </a>
+                <a href="{{ url_for('issues.issue_book', student_id=student.student_id) }}" class="btn btn-primary-custom btn-sm">
+                    <i class="bi bi-box-arrow-up-right me-1"></i> Issue Book
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3 Mini Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-primary">{{ active_issues|length }}</div>
+                    <div class="kpi-label">Currently Issued Books</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-primary"><i class="bi bi-book"></i></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-danger">{{ currency }}{{ "%.2f"|format(student.pending_fines_total) }}</div>
+                    <div class="kpi-label">Pending Fine Dues</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-danger"><i class="bi bi-receipt"></i></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-warning">{{ reservations|length }}</div>
+                    <div class="kpi-label">Active Book Reservations</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-warning"><i class="bi bi-bookmark-star"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Loans Table -->
+    <div class="card card-custom p-0 overflow-hidden mb-4">
+        <div class="p-3 border-bottom bg-light-subtle d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0"><i class="bi bi-journal-bookmark me-2 text-primary"></i> Currently Borrowed Books</h6>
+            <span class="badge bg-primary">{{ active_issues|length }} Active</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Issue Code</th>
+                        <th>Book Title</th>
+                        <th>Issue Date</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in active_issues %}
+                    <tr>
+                        <td class="fw-bold text-primary">{{ issue.issue_code }}</td>
+                        <td>{{ issue.book.title }}</td>
+                        <td>{{ issue.issue_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ issue.due_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if issue.is_overdue %}
+                            <span class="badge bg-danger">{{ issue.overdue_days }} Days Overdue</span>
+                            {% else %}
+                            <span class="badge bg-info">Active Loan</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('issues.return_book', issue_id=issue.id) }}" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-box-arrow-in-down-left me-1"></i> Return
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-3 text-muted">No books currently borrowed by this student.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Past History & Fines -->
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card card-custom p-0 overflow-hidden h-100">
+                <div class="p-3 border-bottom bg-light-subtle">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2"></i> Past Loan History</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>Book Title</th>
+                                <th>Returned On</th>
+                                <th>Condition</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for past in past_issues %}
+                            <tr>
+                                <td>{{ past.book.title }}</td>
+                                <td>{{ past.return_date.strftime('%Y-%m-%d') if past.return_date else 'N/A' }}</td>
+                                <td><span class="badge bg-secondary">Returned</span></td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center py-3 text-muted">No past loans recorded.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card card-custom p-0 overflow-hidden h-100">
+                <div class="p-3 border-bottom bg-light-subtle">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-cash-stack me-2 text-danger"></i> Fines &amp; Penalties</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>Amount</th>
+                                <th>Overdue Days</th>
+                                <th>Status</th>
+                                <th>Payment Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fine in fines %}
+                            <tr>
+                                <td class="fw-bold">{{ currency }}{{ "%.2f"|format(fine.amount) }}</td>
+                                <td>{{ fine.overdue_days }} days</td>
+                                <td>
+                                    {% if fine.status == 'paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                    {% elif fine.status == 'pending' %}
+                                    <span class="badge bg-danger">Pending</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Waived</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ fine.payment_date.strftime('%Y-%m-%d') if fine.payment_date else '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center py-3 text-muted">No fines on record.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

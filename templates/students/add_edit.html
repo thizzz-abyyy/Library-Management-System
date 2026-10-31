@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Register Student' if action == 'add' else 'Edit Student: ' + student.name }} - {{ library_name }}{% endblock %}
+{% block page_title %}{{ 'Register Student Borrower' if action == 'add' else 'Update Student Record' }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-9">
+        <div class="card card-custom p-4 p-md-5">
+            <div class="d-flex align-items-center gap-3 border-bottom pb-3 mb-4">
+                <div class="kpi-icon-box kpi-icon-primary">
+                    <i class="bi bi-mortarboard-fill"></i>
+                </div>
+                <div>
+                    <h4 class="fw-bold mb-1">{{ 'Add Student to Library Registry' if action == 'add' else 'Edit Student Profile' }}</h4>
+                    <p class="text-muted small mb-0">Student Library ID Card with digital barcode/QR is generated automatically.</p>
+                </div>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" action="{{ url_for('students.add') if action == 'add' else url_for('students.edit', student_id=student.id) }}">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control form-control-custom" value="{{ student.name if student else '' }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Student ID / Roll No <span class="text-danger">*</span></label>
+                        <input type="text" name="student_id" class="form-control form-control-custom" value="{{ student.student_id if student else '' }}" {% if action == 'edit' %}disabled{% endif %} placeholder="e.g. STU-2026-005" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Institutional Email <span class="text-danger">*</span></label>
+                        <input type="email" name="email" class="form-control form-control-custom" value="{{ student.email if student else '' }}" {% if action == 'edit' %}disabled{% endif %} required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Phone Number <span class="text-danger">*</span></label>
+                        <input type="text" name="phone" class="form-control form-control-custom" value="{{ student.phone if student else '' }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Department <span class="text-danger">*</span></label>
+                        <input type="text" name="department" class="form-control form-control-custom" value="{{ student.department if student else '' }}" placeholder="e.g. Computer Science & Engineering" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Academic Year <span class="text-danger">*</span></label>
+                        <input type="text" name="academic_year" class="form-control form-control-custom" value="{{ student.academic_year if student else 'Final Year (2025-2026)' }}" required>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Address</label>
+                        <textarea name="address" class="form-control form-control-custom" rows="2">{{ student.address if student else '' }}</textarea>
+                    </div>
+
+                    {% if action == 'edit' %}
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Account Status</label>
+                        <select name="status" class="form-select form-select-custom">
+                            <option value="active" {% if student.status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="suspended" {% if student.status == 'suspended' %}selected{% endif %}>Suspended</option>
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">{{ 'Login Password' if action == 'add' else 'Update Password (optional)' }}</label>
+                        <input type="password" name="password" class="form-control form-control-custom" placeholder="{{ 'Default: student123' if action == 'add' else 'Leave blank to retain' }}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Profile Photo / Avatar</label>
+                        <input type="file" name="avatar" class="form-control form-control-custom" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('students.list_students') }}" class="btn btn-outline-custom">Cancel</a>
+                    <button type="submit" class="btn btn-primary-custom px-4">
+                        <i class="bi bi-save me-1"></i> {{ 'Register Student' if action == 'add' else 'Update Student' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

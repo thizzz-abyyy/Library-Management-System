@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Scan QR Code to Locate Book - {{ library_name }}{% endblock %}
+{% block page_title %}QR Code Book Location Scanner{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header -->
+    <div class="card card-custom p-4 mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e40af 100%); color: white;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <span class="badge bg-primary px-3 py-1 rounded-pill fw-bold mb-2">
+                    <i class="bi bi-qr-code-scan me-1"></i> Camera &amp; Barcode Scanner
+                </span>
+                <h3 class="fw-bold mb-1 text-white">Instant Physical Shelf Locator</h3>
+                <p class="mb-0 opacity-80 small">
+                    Scan any book's QR code or barcode to pinpoint its exact floor, room, rack, shelf, and position in seconds.
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('locations.find_book') }}" class="btn btn-light btn-sm fw-bold text-primary">
+                    <i class="bi bi-search me-1"></i> Search Catalog
+                </a>
+                <a href="{{ url_for('locations.visual_map') }}" class="btn btn-outline-light btn-sm fw-bold">
+                    <i class="bi bi-map-fill me-1"></i> Visual Map
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Scanner Column -->
+        <div class="col-lg-5">
+            <div class="card card-custom p-3 shadow-sm h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-camera-video-fill text-primary me-2"></i>Live Camera Feed
+                    </h5>
+                    <span id="scanStatusBadge" class="badge bg-secondary">Idle</span>
+                </div>
+
+                <div id="cameraErrorMessage" class="alert alert-warning d-none small"></div>
+
+                <!-- Video Viewport -->
+                <div class="position-relative mb-3 bg-dark rounded-3 overflow-hidden shadow-inner text-center" style="min-height: 280px; display: flex; align-items: center; justify-content: center;">
+                    <div id="qrReaderViewport" style="width: 100%; min-height: 280px;"></div>
+                    <div id="viewportPlaceholder" class="p-4 text-white-50">
+                        <i class="bi bi-camera-fill display-4 d-block mb-2 text-primary opacity-50"></i>
+                        <div class="fw-bold text-white small">Camera scanner is stopped</div>
+                        <small>Click "Start Camera" below to scan book QR codes or barcodes</small>
+                    </div>
+                </div>
+
+                <!-- Camera Controls -->
+                <div class="d-flex gap-2 mb-4">
+                    <button id="btnStartCamera" type="button" class="btn btn-primary-custom flex-grow-1" onclick="startScanner()">
+                        <i class="bi bi-camera me-1"></i> Start Camera
+                    </button>
+                    <button id="btnStopCamera" type="button" class="btn btn-outline-danger" onclick="stopScanner()" disabled>
+                        <i class="bi bi-stop-circle me-1"></i> Stop
+                    </button>
+                </div>
+
+                <div class="border-top pt-3">
+                    <label class="form-label small fw-bold text-muted">
+                        <i class="bi bi-keyboard me-1"></i> Or Look Up by Book ID, ISBN, or Barcode
+                    </label>
+                    <div class="input-group">
+                        <input type="text" id="manualQueryInput" class="form-control form-control-custom" placeholder="e.g. 1, 978-0132350884, BC-BK1-C1" autocomplete="off" onkeydown="if(event.key==='Enter') lookupManualQuery()">
+                        <button class="btn btn-primary-custom" type="button" onclick="lookupManualQuery()">
+                            <i class="bi bi-search"></i> Locate
+                        </button>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        💡 Try sample inputs: <code>1</code>, <code>2</code>, <code>978-0132350884</code>, or scan book QR.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Column -->
+        <div class="col-lg-7">
+            <div class="card card-custom p-4 shadow-sm h-100" id="resultContainer">
+                <div id="emptyResultState" class="text-center py-5">
+                    <div class="mb-3">
+                        <div class="d-inline-flex p-4 rounded-circle bg-light text-primary">
+                            <i class="bi bi-geo-alt display-4"></i>
+                        </div>
+                    </div>
+                    <h5 class="fw-bold text-dark">Ready to Locate Books</h5>
+                    <p class="text-muted small mx-auto" style="max-width: 420px;">
+                        Aim your device camera at a book's QR code or enter a Book ID/ISBN on the left to reveal its real-time shelf placement, floor, room, and position.
+                    </p>
+                </div>
+
+                <!-- Populated Book Location Card -->
+                <div id="populatedResult" class="d-none">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3 pb-3 border-bottom">
+                        <div>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill mb-1" id="resStatusBadge">
+                                <i class="bi bi-check-circle-fill me-1"></i> Available
+                            </span>
+                            <h4 class="fw-bold mb-1 text-dark" id="resBookTitle">Book Title</h4>
+                            <div class="text-muted small">
+                                By <span class="fw-semibold text-dark" id="resBookAuthor">Author</span> | 
+                                ISBN: <span class="fw-semibold text-dark" id="resBookIsbn">---</span> | 
+                                Category: <span class="badge bg-light text-dark border" id="resBookCat">---</span>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary fs-6 px-3 py-2" id="resBookId">Book ID: #1</span>
+                        </div>
+                    </div>
+
+                    <!-- Location Path Highlighting Banner -->
+                    <div class="card p-3 mb-4 border-0" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-left: 5px solid #2563eb !important;">
+                        <div class="small fw-bold text-uppercase text-primary mb-1">
+                            <i class="bi bi-pin-map-fill me-1"></i> Exact Physical Shelf Location
+                        </div>
+                        <div class="fw-bold fs-5 text-dark font-monospace" id="resFullLocationDisplay">
+                            Ground Floor → Computer Science → Room 101 → Rack R05 → Shelf S03 → Position B12
+                        </div>
+                        <div class="small text-muted mt-1" id="resLocationHelp">
+                            Follow this sequence to retrieve the book directly from the library stacks.
+                        </div>
+                    </div>
+
+                    <!-- Detail Grid -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-4 col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="text-muted small">Floor Level</div>
+                                <div class="fw-bold fs-6 text-dark" id="resFloor">Ground Floor</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4 col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="text-muted small">Room</div>
+                                <div class="fw-bold fs-6 text-dark" id="resRoom">Room 101</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4 col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="text-muted small">Rack</div>
+                                <div class="fw-bold fs-6 text-dark" id="resRack">Rack R05</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4 col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="text-muted small">Shelf</div>
+                                <div class="fw-bold fs-6 text-dark" id="resShelf">Shelf S03</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4 col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="text-muted small">Position Slot</div>
+                                <div class="fw-bold fs-6 text-primary font-monospace" id="resPosition">B12</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4 col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="text-muted small">Inventory Copies</div>
+                                <div class="fw-bold fs-6 text-dark" id="resCopies">1 / 1 Available</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Copies Breakdown Table if multiple copies -->
+                    <div id="copiesTableContainer" class="mb-4 d-none">
+                        <h6 class="fw-bold text-dark mb-2">All Registered Physical Copies</h6>
+                        <div class="table-responsive border rounded-3">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Copy</th>
+                                        <th>Barcode</th>
+                                        <th>Status</th>
+                                        <th>Physical Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="copiesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                        <a id="btnViewOnMap" href="#" class="btn btn-primary-custom btn-sm">
+                            <i class="bi bi-map me-1"></i> Highlight on Visual Map
+                        </a>
+                        <a id="btnBookDetails" href="#" class="btn btn-outline-custom btn-sm">
+                            <i class="bi bi-book me-1"></i> Book Catalog Details
+                        </a>
+                        {% if current_user.is_authenticated and current_user.role in ('admin', 'librarian') %}
+                        <a id="btnIssueBook" href="#" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-arrow-up-right-circle me-1"></i> Issue This Book
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/qr_scanner.js') }}"></script>
+<script>
+let scannerActive = false;
+
+function startScanner() {
+    const placeholder = document.getElementById('viewportPlaceholder');
+    const statusBadge = document.getElementById('scanStatusBadge');
+    const btnStart = document.getElementById('btnStartCamera');
+    const btnStop = document.getElementById('btnStopCamera');
+    const errAlert = document.getElementById('cameraErrorMessage');
+    
+    errAlert.classList.add('d-none');
+    placeholder.classList.add('d-none');
+    statusBadge.className = 'badge bg-success';
+    statusBadge.textContent = 'Scanning...';
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    scannerActive = true;
+
+    startCameraScanner('qrReaderViewport', function(decodedText) {
+        console.log("Decoded text:", decodedText);
+        handleScannedText(decodedText);
+        stopScanner();
+    });
+}
+
+function stopScanner() {
+    stopCameraScanner();
+    const placeholder = document.getElementById('viewportPlaceholder');
+    const statusBadge = document.getElementById('scanStatusBadge');
+    const btnStart = document.getElementById('btnStartCamera');
+    const btnStop = document.getElementById('btnStopCamera');
+    
+    placeholder.classList.remove('d-none');
+    statusBadge.className = 'badge bg-secondary';
+    statusBadge.textContent = 'Idle';
+    btnStart.disabled = false;
+    btnStop.disabled = true;
+    scannerActive = false;
+}
+
+function handleScannedText(text) {
+    const parsed = parseQrPayload(text);
+    let query = text;
+    if (parsed.type === 'book') {
+        query = parsed.isbn || parsed.id;
+    }
+    fetchLocationData(query);
+}
+
+function lookupManualQuery() {
+    const query = document.getElementById('manualQueryInput').value.trim();
+    if (!query) return;
+    fetchLocationData(query);
+}
+
+function fetchLocationData(query) {
+    fetch(`/locations/api/lookup?q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.found) {
+                alert(data.message || 'Book not found.');
+                return;
+            }
+            displayBookLocation(data.book);
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Error querying book location.");
+        });
+}
+
+function displayBookLocation(b) {
+    document.getElementById('emptyResultState').classList.add('d-none');
+    const populated = document.getElementById('populatedResult');
+    populated.classList.remove('d-none');
+
+    document.getElementById('resBookTitle').textContent = b.title;
+    document.getElementById('resBookAuthor').textContent = b.author;
+    document.getElementById('resBookIsbn').textContent = b.isbn;
+    document.getElementById('resBookCat').textContent = b.category;
+    document.getElementById('resBookId').textContent = `Book ID: #${b.id}`;
+
+    // Status
+    const statusBadge = document.getElementById('resStatusBadge');
+    if (b.is_available) {
+        statusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill mb-1';
+        statusBadge.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> Available (${b.available_copies} of ${b.total_copies})`;
+    } else {
+        statusBadge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill mb-1';
+        statusBadge.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i> Currently Issued / Unavailable`;
+    }
+
+    document.getElementById('resFullLocationDisplay').textContent = b.primary_location || 'Unassigned (Pending Shelf Placement)';
+    document.getElementById('resCopies').textContent = `${b.available_copies} / ${b.total_copies} Available`;
+
+    // Fill primary copy cards
+    if (b.copies && b.copies.length > 0) {
+        const c1 = b.copies[0];
+        document.getElementById('resFloor').textContent = c1.floor_name || 'Ground Floor';
+        document.getElementById('resRoom').textContent = c1.room_number || 'Room 101';
+        document.getElementById('resRack').textContent = c1.rack_number || 'Rack R05';
+        document.getElementById('resShelf').textContent = c1.shelf_number || 'Shelf S03';
+        document.getElementById('resPosition').textContent = c1.position_code || 'B12';
+
+        // Map link
+        if (c1.shelf_id) {
+            document.getElementById('btnViewOnMap').href = `/locations/map?shelf=${c1.shelf_id}`;
+            document.getElementById('btnViewOnMap').classList.remove('d-none');
+        } else {
+            document.getElementById('btnViewOnMap').href = `/locations/map`;
+        }
+
+        // Copies table
+        if (b.copies.length > 1) {
+            const tableContainer = document.getElementById('copiesTableContainer');
+            const tbody = document.getElementById('copiesTableBody');
+            tbody.innerHTML = '';
+            b.copies.forEach(copy => {
+                const tr = document.createElement('tr');
+                const badgeClass = copy.status === 'on_shelf' ? 'bg-success' : 'bg-warning text-dark';
+                tr.innerHTML = `
+                    <td class="fw-bold">Copy #${copy.copy_number}</td>
+                    <td><code>${copy.barcode}</code></td>
+                    <td><span class="badge ${badgeClass}">${copy.status}</span></td>
+                    <td class="small font-monospace">${copy.location_path}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            tableContainer.classList.remove('d-none');
+        } else {
+            document.getElementById('copiesTableContainer').classList.add('d-none');
+        }
+    } else {
+        document.getElementById('resFloor').textContent = 'N/A';
+        document.getElementById('resRoom').textContent = 'N/A';
+        document.getElementById('resRack').textContent = 'N/A';
+        document.getElementById('resShelf').textContent = 'N/A';
+        document.getElementById('resPosition').textContent = 'N/A';
+        document.getElementById('copiesTableContainer').classList.add('d-none');
+        document.getElementById('btnViewOnMap').href = `/locations/map`;
+    }
+
+    // Detail button
+    document.getElementById('btnBookDetails').href = `/books/${b.id}`;
+
+    // Issue button
+    const btnIssue = document.getElementById('btnIssueBook');
+    if (btnIssue) {
+        btnIssue.href = `/issues/new?book_id=${b.id}`;
+    }
+}
+
+// Auto-run if 'q' in URL
+window.addEventListener('load', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const q = urlParams.get('q');
+    if (q) {
+        document.getElementById('manualQueryInput').value = q;
+        fetchLocationData(q);
+    }
+});
+</script>
+{% endblock %}
+

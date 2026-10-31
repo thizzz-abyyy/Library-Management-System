@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment and Secret Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# SQLite local databases (protect local records / production overrides)
+*.db
+*.sqlite
+*.sqlite3
+library.db
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+
+# Vercel Deployment Artifacts
+.vercel/
+
+# Temporary generated files and dynamic exports
+reports/exports/*
+!reports/exports/.gitkeep
+uploads/qr_codes/*
+!uploads/qr_codes/.gitkeep
+uploads/ebooks/*
+!uploads/ebooks/.gitkeep
+
+# IDEs & System files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini

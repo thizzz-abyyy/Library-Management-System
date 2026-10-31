@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}My Fines - {{ library_name }}{% endblock %}
+{% block page_title %}My Fine Records &amp; Payment History{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-danger">{{ currency }}{{ "%.2f"|format(total_pending) }}</div>
+                    <div class="kpi-label">Outstanding Balance Dues</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-danger"><i class="bi bi-clock-history"></i></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-success">{{ currency }}{{ "%.2f"|format(total_paid) }}</div>
+                    <div class="kpi-label">Settled Paid Fines</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-success"><i class="bi bi-check2-all"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="p-3 border-bottom bg-light-subtle">
+            <h5 class="fw-bold mb-0"><i class="bi bi-receipt text-danger me-2"></i> All Fine Notices</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Receipt #</th>
+                        <th>Book Involved</th>
+                        <th>Overdue Days</th>
+                        <th>Fine Amount</th>
+                        <th>Status</th>
+                        <th>Method</th>
+                        <th>Payment Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fine in fines %}
+                    <tr>
+                        <td><code>{{ fine.transaction_id or ('#' ~ fine.id) }}</code></td>
+                        <td>{{ fine.issue.book.title }}</td>
+                        <td>{{ fine.overdue_days }} days</td>
+                        <td><span class="fw-bold fs-6">{{ currency }}{{ "%.2f"|format(fine.amount) }}</span></td>
+                        <td>
+                            {% if fine.status == 'paid' %}
+                            <span class="badge-status badge-status-success">Paid</span>
+                            {% elif fine.status == 'pending' %}
+                            <span class="badge-status badge-status-danger">Pending</span>
+                            {% else %}
+                            <span class="badge-status badge-status-secondary">Waived</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ fine.payment_method or '-' }}</td>
+                        <td>{{ fine.payment_date.strftime('%Y-%m-%d') if fine.payment_date else '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No fine records on your account. Great job returning books on time!</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

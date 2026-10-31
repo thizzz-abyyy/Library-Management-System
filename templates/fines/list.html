@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Fines Management - {{ library_name }}{% endblock %}
+{% block page_title %}Fines &amp; Delinquency Dues Collection{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header & Summary Cards -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Fine Collection &amp; Overdue Dues</h4>
+            <p class="text-muted small mb-0">Configured policy rate: <strong>{{ currency }}{{ fine_per_day }}/day</strong> for late book checkouts.</p>
+        </div>
+        <a href="{{ url_for('reports.index', type='fines') }}" class="btn btn-outline-custom">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export Fine Report
+        </a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-danger">{{ currency }}{{ "%.2f"|format(total_pending) }}</div>
+                    <div class="kpi-label">Outstanding Pending Fines</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-danger"><i class="bi bi-hourglass-bottom"></i></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-success">{{ currency }}{{ "%.2f"|format(total_paid) }}</div>
+                    <div class="kpi-label">Total Fine Revenue Collected</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-success"><i class="bi bi-cash-stack"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card card-custom mb-4 p-3">
+        <form method="GET" action="{{ url_for('fines.list_fines') }}" class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control form-control-custom" placeholder="Search by Student Name, ID, or Receipt Number..." value="{{ search }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select form-select-custom">
+                    <option value="">All Statuses</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending Only</option>
+                    <option value="paid" {% if status == 'paid' %}selected{% endif %}>Paid Fines</option>
+                    <option value="waived" {% if status == 'waived' %}selected{% endif %}>Waived Dues</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">Filter</button>
+                <a href="{{ url_for('fines.list_fines') }}" class="btn btn-outline-custom">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Fines Table -->
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Receipt / ID</th>
+                        <th>Student Borrower</th>
+                        <th>Book Involved</th>
+                        <th>Overdue Days</th>
+                        <th>Fine Amount</th>
+                        <th>Status</th>
+                        <th>Payment Method</th>
+                        <th>Payment Date</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in fines.items %}
+                    <tr>
+                        <td><code>{{ f.transaction_id or ('#' ~ f.id) }}</code></td>
+                        <td>
+                            <div class="fw-bold">{{ f.student.name }}</div>
+                            <small class="text-muted">{{ f.student.student_id }}</small>
+                        </td>
+                        <td>{{ f.issue.book.title|truncate(25, True, '...') }}</td>
+                        <td>{{ f.overdue_days }} days</td>
+                        <td><span class="fw-bold text-dark fs-6">{{ currency }}{{ "%.2f"|format(f.amount) }}</span></td>
+                        <td>
+                            {% if f.status == 'paid' %}
+                            <span class="badge-status badge-status-success">Paid</span>
+                            {% elif f.status == 'pending' %}
+                            <span class="badge-status badge-status-danger">Pending</span>
+                            {% else %}
+                            <span class="badge-status badge-status-secondary">Waived</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ f.payment_method or '-' }}</td>
+                        <td>{{ f.payment_date.strftime('%Y-%m-%d') if f.payment_date else '-' }}</td>
+                        <td class="text-end">
+                            {% if f.status == 'pending' %}
+                            <button type="button" class="btn btn-sm btn-outline-success me-1" data-bs-toggle="modal" data-bs-target="#payModal{{ f.id }}" title="Record Payment">
+                                <i class="bi bi-credit-card me-1"></i> Collect
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#waiveModal{{ f.id }}" title="Waive Fine">
+                                <i class="bi bi-slash-circle"></i>
+                            </button>
+
+                            <!-- Pay Modal -->
+                            <div class="modal fade" id="payModal{{ f.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow">
+                                        <div class="modal-header bg-success text-white">
+                                            <h5 class="modal-title"><i class="bi bi-cash-stack me-2"></i> Collect Fine Payment</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ url_for('fines.pay_fine', fine_id=f.id) }}">
+                                            <div class="modal-body p-4 text-start">
+                                                <div class="alert alert-light border p-3 mb-3">
+                                                    <div class="d-flex justify-content-between">
+                                                        <span>Student:</span> <strong>{{ f.student.name }}</strong>
+                                                    </div>
+                                                    <div class="d-flex justify-content-between mt-1">
+                                                        <span>Amount Due:</span> <strong class="text-danger fs-5">{{ currency }}{{ "%.2f"|format(f.amount) }}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Payment Method</label>
+                                                    <select name="payment_method" class="form-select">
+                                                        <option value="Cash">Cash at Counter</option>
+                                                        <option value="Card">Credit / Debit Card</option>
+                                                        <option value="Online">Online Campus Payment</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Receipt / Transaction ID (Optional)</label>
+                                                    <input type="text" name="transaction_id" class="form-control" placeholder="Auto-generated if left blank">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Payment Remarks</label>
+                                                    <input type="text" name="notes" class="form-control" placeholder="e.g. Paid in full at desk">
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-success btn-sm px-4">Confirm Payment Receipt</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Waive Modal -->
+                            <div class="modal fade" id="waiveModal{{ f.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow">
+                                        <div class="modal-header bg-warning text-dark">
+                                            <h5 class="modal-title"><i class="bi bi-slash-circle me-2"></i> Waive Outstanding Fine</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ url_for('fines.waive_fine', fine_id=f.id) }}">
+                                            <div class="modal-body p-4 text-start">
+                                                <p>Are you sure you want to waive <strong>{{ currency }}{{ "%.2f"|format(f.amount) }}</strong> for <strong>{{ f.student.name }}</strong>?</p>
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-bold">Reason for Waiver <span class="text-danger">*</span></label>
+                                                    <input type="text" name="waive_reason" class="form-control" placeholder="e.g. Medical exemption, departmental waiver..." required>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-warning btn-sm px-4">Confirm Waiver</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">Settled</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">No fine records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if fines.pages > 1 %}
+        <div class="p-3 border-top d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing page {{ fines.page }} of {{ fines.pages }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if fines.has_prev %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('fines.list_fines', page=fines.prev_num, q=search, status=status) }}">Previous</a></li>
+                    {% endif %}
+                    {% for p in fines.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if p %}
+                            <li class="page-item {% if p == fines.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('fines.list_fines', page=p, q=search, status=status) }}">{{ p }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if fines.has_next %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('fines.list_fines', page=fines.next_num, q=search, status=status) }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

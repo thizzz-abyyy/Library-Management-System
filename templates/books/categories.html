@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Categories - {{ library_name }}{% endblock %}
+{% block page_title %}Book Categories &amp; Classifications{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Book Categories &amp; Genres</h4>
+            <p class="text-muted small mb-0">Organize and structure catalog volumes by academic disciplines and genres.</p>
+        </div>
+        <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <i class="bi bi-plus-lg"></i> Add New Category
+        </button>
+    </div>
+
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Category Name</th>
+                        <th>Icon</th>
+                        <th>Description</th>
+                        <th>Cataloged Titles</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in categories %}
+                    <tr>
+                        <td>#{{ cat.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="kpi-icon-box kpi-icon-primary" style="width: 36px; height: 36px; font-size: 1.1rem;">
+                                    <i class="bi {{ cat.icon }}"></i>
+                                </div>
+                                <span class="fw-bold text-dark">{{ cat.name }}</span>
+                            </div>
+                        </td>
+                        <td><code>{{ cat.icon }}</code></td>
+                        <td><span class="small text-muted">{{ cat.description or 'None' }}</span></td>
+                        <td><span class="badge bg-primary-subtle text-primary">{{ cat.books.count() }} Titles</span></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editCategoryModal{{ cat.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-action="{{ url_for('books.categories') }}" data-name="{{ cat.name }}" onclick="document.querySelector('#deleteForm').innerHTML = '<input type=\'hidden\' name=\'action\' value=\'delete\'><input type=\'hidden\' name=\'id\' value=\'{{ cat.id }}\'>';">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Edit Category Modal -->
+                    <div class="modal fade" id="editCategoryModal{{ cat.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title">Edit Category</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('books.categories') }}">
+                                    <input type="hidden" name="action" value="edit">
+                                    <input type="hidden" name="id" value="{{ cat.id }}">
+                                    <div class="modal-body p-4">
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Category Name</label>
+                                            <input type="text" name="name" class="form-control" value="{{ cat.name }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Bootstrap Icon Class</label>
+                                            <input type="text" name="icon" class="form-control" value="{{ cat.icon }}" placeholder="bi-bookmark">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Description</label>
+                                            <textarea name="description" class="form-control" rows="2">{{ cat.description or '' }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary btn-sm px-4">Update Category</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No categories created yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Create New Category</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('books.categories') }}">
+                <input type="hidden" name="action" value="add">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Cybersecurity & Networks" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Bootstrap Icon Class</label>
+                        <input type="text" name="icon" class="form-control" placeholder="bi-shield-lock" value="bi-bookmark">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Description</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Brief scope of topics..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Save Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

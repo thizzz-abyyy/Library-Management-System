@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Visual Library Shelf Map - {{ library_name }}{% endblock %}
+{% block page_title %}Interactive Library Shelf &amp; Floor Map{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header with Breadcrumb Navigator -->
+    <div class="card card-custom p-4 mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: white;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <span class="badge bg-primary px-3 py-1 rounded-pill fw-bold mb-2">
+                    <i class="bi bi-map-fill me-1"></i> Interactive Floor &amp; Stacks Visualizer
+                </span>
+                <h3 class="fw-bold mb-1 text-white">Visual Library Shelf Navigator</h3>
+                <p class="mb-0 opacity-80 small">
+                    Explore floor layouts, navigate between rooms, racks, and inspect physical shelves in real-time.
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('locations.find_book') }}" class="btn btn-light btn-sm fw-bold text-primary">
+                    <i class="bi bi-search me-1"></i> Find Book Location
+                </a>
+                {% if current_user.is_authenticated and current_user.role in ('admin', 'librarian') %}
+                <a href="{{ url_for('locations.manage_shelves') }}" class="btn btn-outline-light btn-sm fw-bold">
+                    <i class="bi bi-gear-fill me-1"></i> Manage Shelves
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Location Breadcrumb Trail -->
+        {% if current_floor %}
+        <div class="mt-3 pt-3 border-top border-secondary d-flex flex-wrap align-items-center gap-2 small">
+            <span class="opacity-75">Active Selection:</span>
+            <span class="badge bg-light text-dark">{{ current_floor.name }}</span>
+            <i class="bi bi-chevron-right opacity-50"></i>
+            <span class="badge bg-light text-dark">{{ current_room.room_number if current_room else 'Select Room' }}</span>
+            <i class="bi bi-chevron-right opacity-50"></i>
+            <span class="badge bg-light text-dark">{{ current_rack.rack_number if current_rack else 'Select Rack' }}</span>
+            {% if selected_shelf %}
+            <i class="bi bi-chevron-right opacity-50"></i>
+            <span class="badge bg-warning text-dark fw-bold">{{ selected_shelf.shelf_number }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 1. Floor Selector Tabs -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        {% for fl in floors %}
+        <a href="{{ url_for('locations.visual_map', floor=fl.id) }}" class="btn btn-lg {% if current_floor and current_floor.id == fl.id %}btn-primary shadow-md{% else %}btn-outline-custom bg-white{% endif %} px-4 fw-bold">
+            <i class="bi bi-layers-half me-2"></i> {{ fl.name }}
+            <span class="badge bg-white text-dark ms-2 small">{{ fl.rooms.count() }} Rooms</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- 2. Room & Rack Selector Navigation -->
+    <div class="row g-4 mb-4">
+        <!-- Room Selector Card -->
+        <div class="col-lg-4 col-md-5">
+            <div class="card card-custom p-3 h-100">
+                <h6 class="fw-bold mb-3 text-primary"><i class="bi bi-door-open-fill me-1"></i> Rooms on {{ current_floor.name if current_floor else '' }}</h6>
+                <div class="d-flex flex-column gap-2">
+                    {% for rm in rooms %}
+                    <a href="{{ url_for('locations.visual_map', floor=current_floor.id, room=rm.id) }}" class="p-3 rounded-3 border text-decoration-none {% if current_room and current_room.id == rm.id %}bg-primary-subtle border-primary text-primary fw-bold shadow-sm{% else %}bg-light-subtle text-dark hover-bg{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fs-6 d-block">{{ rm.room_number }}</span>
+                                <small class="text-muted d-block fw-normal">{{ rm.name or 'Archival Room' }}</small>
+                            </div>
+                            <span class="badge bg-white text-dark border">{{ rm.racks.count() }} Racks</span>
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="text-center py-4 text-muted small">No rooms configured on this floor.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Rack Selector & Layout Visualizer -->
+        <div class="col-lg-8 col-md-7">
+            <div class="card card-custom p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0 text-primary"><i class="bi bi-grid-3x2-gap-fill me-1"></i> Racks in {{ current_room.room_number if current_room else '' }}</h6>
+                    <small class="text-muted">Click a rack to view its shelving units</small>
+                </div>
+                
+                <div class="row g-3">
+                    {% for rk in racks %}
+                    <div class="col-md-6">
+                        <a href="{{ url_for('locations.visual_map', floor=current_floor.id, room=current_room.id, rack=rk.id) }}" class="p-3 rounded-3 border text-decoration-none d-block {% if current_rack and current_rack.id == rk.id %}bg-primary-subtle border-primary text-primary shadow-sm{% else %}bg-light-subtle text-dark hover-bg{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold fs-6"><i class="bi bi-bookshelf me-1"></i> {{ rk.rack_number }}</span>
+                                <span class="badge bg-primary rounded-pill">{{ rk.shelves.count() }} Shelves</span>
+                            </div>
+                            <div class="small text-muted mb-2">{{ rk.description or 'Standard Academic Stacks' }}</div>
+                            <div class="small text-secondary">
+                                <i class="bi bi-bookmark me-1"></i> {{ rk.section.name if rk.section else (rk.room.section.name if rk.room and rk.room.section else 'General') }}
+                            </div>
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="col-12 text-center py-4 text-muted">No racks located in this room yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Visual Shelving Unit (Physical Rack Representation) -->
+    {% if current_rack %}
+    <div class="card card-custom p-4 p-md-5 mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-3 mb-4 gap-2">
+            <div>
+                <h4 class="fw-bold mb-1 text-dark">
+                    <i class="bi bi-bookshelf text-primary me-2"></i> Physical Shelving Unit: {{ current_rack.rack_number }}
+                </h4>
+                <p class="text-muted small mb-0">
+                    Location: <strong>{{ current_floor.name }}</strong> &rarr; <strong>{{ current_room.room_number }}</strong> &rarr; <strong>{{ current_rack.rack_number }}</strong>
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-1 small text-muted">
+                    <span class="badge bg-success" style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span> Low Occupancy (&lt;70%)
+                </div>
+                <div class="d-flex align-items-center gap-1 small text-muted">
+                    <span class="badge bg-warning" style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span> Moderate (70-90%)
+                </div>
+                <div class="d-flex align-items-center gap-1 small text-muted">
+                    <span class="badge bg-danger" style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span> Full (&gt;90%)
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Vertical Shelves Structure -->
+        <div class="p-4 rounded-4 border shadow-sm mb-4" style="background: #0f172a; border: 4px solid #334155 !important;">
+            <div class="text-center text-white small fw-bold mb-3 tracking-wide text-uppercase" style="letter-spacing: 0.15em;">
+                <i class="bi bi-arrow-down-up me-1"></i> Top to Bottom Shelf Rack Grid
+            </div>
+
+            <div class="d-flex flex-column gap-3">
+                {% for sh in shelves %}
+                {% set occ = sh.occupancy_percent %}
+                {% set is_selected = selected_shelf and selected_shelf.id == sh.id %}
+                
+                <a href="{{ url_for('locations.visual_map', floor=current_floor.id, room=current_room.id, rack=current_rack.id, shelf=sh.id) }}" class="text-decoration-none">
+                    <div class="p-3 rounded-3 transition-all" style="background: {% if is_selected %}#1e3a8a{% else %}#1e293b{% endif %}; border: 2px solid {% if is_selected %}#60a5fa{% else %}#334155{% endif %}; box-shadow: {% if is_selected %}0 0 15px rgba(96, 165, 250, 0.5){% else %}none{% endif %};">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge {% if is_selected %}bg-warning text-dark{% else %}bg-primary{% endif %} fs-6 fw-bold">
+                                    <i class="bi bi-bookshelf me-1"></i> {{ sh.shelf_number }}
+                                </span>
+                                <span class="text-white small fw-bold">Capacity: {{ sh.assigned_books_count }} / {{ sh.capacity }} Books</span>
+                                {% if is_selected %}
+                                <span class="badge bg-light text-primary px-2 py-1 small fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Active Selected Shelf</span>
+                                {% endif %}
+                            </div>
+                            <span class="badge {% if occ > 90 %}bg-danger{% elif occ >= 70 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                {{ occ }}% Full ({{ sh.available_capacity }} slots available)
+                            </span>
+                        </div>
+
+                        <!-- Shelf Physical Shelf Board Visual Bar -->
+                        <div class="progress" style="height: 10px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar {% if occ > 90 %}bg-danger{% elif occ >= 70 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ occ }}%;" aria-valuenow="{{ occ }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </a>
+                {% else %}
+                <div class="text-center py-4 text-white-50">No shelves configured on this rack yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 4. Books on the Selected Shelf Panel -->
+        {% if selected_shelf %}
+        <div class="card p-4 rounded-3 border bg-light-subtle shadow-sm" id="shelfBooksPanel">
+            <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-3 mb-3 gap-2">
+                <div>
+                    <h5 class="fw-bold mb-1 text-dark">
+                        <i class="bi bi-book-half text-primary me-2"></i> Books Assigned to: <span class="text-primary">{{ selected_shelf.shelf_number }}</span>
+                    </h5>
+                    <small class="text-muted">{{ selected_shelf.full_location_path }} &bull; <strong>{{ selected_shelf.assigned_books_count }}</strong> items placed</small>
+                </div>
+                {% if current_user.is_authenticated and current_user.role in ('admin', 'librarian') %}
+                <a href="{{ url_for('locations.manage_shelves') }}#assignTab" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Assign Book to This Shelf
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Table of Books on this Shelf -->
+            <div class="table-responsive border rounded-3 bg-white">
+                <table class="table table-custom mb-0">
+                    <thead>
+                        <tr>
+                            <th>Position</th>
+                            <th>Book Title</th>
+                            <th>Author</th>
+                            <th>Copy Number</th>
+                            <th>Barcode</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for loc in selected_shelf.book_locations %}
+                        <tr>
+                            <td><span class="badge bg-warning text-dark fw-bold fs-6">Slot {{ loc.position_code or 'N/A' }}</span></td>
+                            <td>
+                                <a href="{{ url_for('books.details', book_id=loc.book_id) }}" class="fw-bold text-dark text-decoration-none">
+                                    {{ loc.book.title }}
+                                </a>
+                            </td>
+                            <td>{{ loc.book.author }}</td>
+                            <td><span class="badge bg-light text-dark border">Copy #{{ loc.copy_number }}</span></td>
+                            <td><code>{{ loc.barcode }}</code></td>
+                            <td>
+                                {% if loc.status == 'on_shelf' %}
+                                <span class="badge-status badge-status-success">On Shelf</span>
+                                {% elif loc.status == 'issued' %}
+                                <span class="badge-status badge-status-danger">Checked Out</span>
+                                {% else %}
+                                <span class="badge-status badge-status-secondary">{{ loc.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('books.details', book_id=loc.book_id) }}" class="btn btn-sm btn-outline-secondary">
+                                    Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                This shelf is currently empty. {{ selected_shelf.capacity }} available slots ready for book assignment.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

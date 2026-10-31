@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - {{ library_name }}{% endblock %}
+{% block page_title %}Executive Analytics &amp; Control Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Welcome Header & Quick Action Shortcuts -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold mb-1">Welcome back, {{ current_user.name }}! 👋</h3>
+            <p class="text-muted small mb-0">Live monitoring of library catalog, daily circulation, student loans, and fines.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('issues.issue_book') }}" class="btn btn-primary-custom btn-sm">
+                <i class="bi bi-box-arrow-up-right"></i> Issue Book
+            </a>
+            <a href="{{ url_for('issues.return_book') }}" class="btn btn-outline-custom btn-sm">
+                <i class="bi bi-box-arrow-in-down-left"></i> Return Book
+            </a>
+            <a href="{{ url_for('books.add') }}" class="btn btn-outline-custom btn-sm">
+                <i class="bi bi-plus-lg"></i> Add Book
+            </a>
+            <a href="{{ url_for('reports.index') }}" class="btn btn-outline-custom btn-sm">
+                <i class="bi bi-file-earmark-bar-graph"></i> Reports
+            </a>
+        </div>
+    </div>
+
+    <!-- 8 Main KPI Cards Grid -->
+    <div class="row g-3 mb-4">
+        <!-- 1. Total Books -->
+        <div class="col-xxl-3 col-xl-3 col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-primary">{{ total_books }}</div>
+                    <div class="kpi-label">Total Books ({{ total_titles }} Titles)</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-primary">
+                    <i class="bi bi-book-half"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Available Books -->
+        <div class="col-xxl-3 col-xl-3 col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-success">{{ available_books }}</div>
+                    <div class="kpi-label">Available on Shelf</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-success">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Issued Books -->
+        <div class="col-xxl-3 col-xl-3 col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-info">{{ active_issues }}</div>
+                    <div class="kpi-label">Currently Issued</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-info">
+                    <i class="bi bi-journal-arrow-up"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Overdue Books -->
+        <div class="col-xxl-3 col-xl-3 col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-danger">{{ overdue_issues }}</div>
+                    <div class="kpi-label">Overdue Loans</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-danger">
+                    <i class="bi bi-exclamation-octagon-fill"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Total Students -->
+        <div class="col-xxl-3 col-xl-3 col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-secondary">{{ total_students }}</div>
+                    <div class="kpi-label">Registered Students</div>
+                </div>
+                <div class="kpi-icon-box" style="background: rgba(100, 116, 139, 0.15); color: #475569;">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Total Librarians -->
+        <div class="col-xxl-3 col-xl-3 col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-dark">{{ total_librarians }}</div>
+                    <div class="kpi-label">Librarian Staff</div>
+                </div>
+                <div class="kpi-icon-box" style="background: rgba(15, 23, 42, 0.1); color: #0f172a;">
+                    <i class="bi bi-person-badge"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. Reserved Books -->
+        <div class="col-xxl-3 col-xl-3 col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-warning">{{ pending_reservations }}</div>
+                    <div class="kpi-label">Active Reservations</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-warning">
+                    <i class="bi bi-bookmark-star-fill"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. Total Fine Collection -->
+        <div class="col-xxl-3 col-xl-3 col-md-6">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-success">{{ currency }}{{ "%.2f"|format(total_fines_collected) }}</div>
+                    <div class="kpi-label">Fines Paid (Pending: {{ currency }}{{ "%.2f"|format(total_fines_pending) }})</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-success">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Smart Book Shelf & Physical Location Tracking Infrastructure -->
+    <div class="card card-custom p-4 mb-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%); border-left: 5px solid #2563eb !important;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+                <span class="badge bg-primary px-3 py-1 rounded-pill fw-bold mb-1">
+                    <i class="bi bi-geo-alt-fill me-1"></i> Physical Stacks &amp; Shelf Tracking
+                </span>
+                <h5 class="fw-bold mb-0 text-dark">Library Shelf Infrastructure &amp; Geolocation</h5>
+                <small class="text-muted">Real-time inventory mapping across physical floors, rooms, racks, and shelf slots.</small>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('locations.visual_map') }}" class="btn btn-primary-custom btn-sm">
+                    <i class="bi bi-map-fill me-1"></i> Visual Shelf Map
+                </a>
+                <a href="{{ url_for('locations.manage_shelves') }}" class="btn btn-outline-custom btn-sm">
+                    <i class="bi bi-gear-fill me-1"></i> Manage Shelves
+                </a>
+                <a href="{{ url_for('locations.find_book') }}" class="btn btn-outline-custom btn-sm">
+                    <i class="bi bi-search me-1"></i> Find Book Location
+                </a>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <!-- Total Floors -->
+            <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+                <div class="kpi-card p-3 shadow-none border bg-white">
+                    <div>
+                        <div class="kpi-value text-primary fs-4">{{ total_floors }}</div>
+                        <div class="kpi-label small">Total Floors</div>
+                    </div>
+                    <div class="kpi-icon-box kpi-icon-primary" style="width: 40px; height: 40px; font-size: 1.1rem;">
+                        <i class="bi bi-layers-fill"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Sections -->
+            <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+                <div class="kpi-card p-3 shadow-none border bg-white">
+                    <div>
+                        <div class="kpi-value text-info fs-4">{{ total_sections }}</div>
+                        <div class="kpi-label small">Total Sections</div>
+                    </div>
+                    <div class="kpi-icon-box kpi-icon-info" style="width: 40px; height: 40px; font-size: 1.1rem;">
+                        <i class="bi bi-collection-fill"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Racks -->
+            <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+                <div class="kpi-card p-3 shadow-none border bg-white">
+                    <div>
+                        <div class="kpi-value text-secondary fs-4">{{ total_racks }}</div>
+                        <div class="kpi-label small">Total Racks</div>
+                    </div>
+                    <div class="kpi-icon-box" style="width: 40px; height: 40px; font-size: 1.1rem; background: rgba(100, 116, 139, 0.15); color: #475569;">
+                        <i class="bi bi-grid-3x2-gap-fill"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Shelves -->
+            <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+                <div class="kpi-card p-3 shadow-none border bg-white">
+                    <div>
+                        <div class="kpi-value text-dark fs-4">{{ total_shelves }}</div>
+                        <div class="kpi-label small">Total Shelves</div>
+                    </div>
+                    <div class="kpi-icon-box" style="width: 40px; height: 40px; font-size: 1.1rem; background: rgba(15, 23, 42, 0.1); color: #0f172a;">
+                        <i class="bi bi-bookshelf"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Located Books -->
+            <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+                <div class="kpi-card p-3 shadow-none border bg-white">
+                    <div>
+                        <div class="kpi-value text-success fs-4">{{ total_located_books }}</div>
+                        <div class="kpi-label small">Total Located Books</div>
+                    </div>
+                    <div class="kpi-icon-box kpi-icon-success" style="width: 40px; height: 40px; font-size: 1.1rem;">
+                        <i class="bi bi-pin-map-fill"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unassigned Books -->
+            <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+                <div class="kpi-card p-3 shadow-none border bg-white">
+                    <div>
+                        <div class="kpi-value text-warning fs-4">{{ unassigned_books }}</div>
+                        <div class="kpi-label small">Unassigned Books</div>
+                    </div>
+                    <div class="kpi-icon-box kpi-icon-warning" style="width: 40px; height: 40px; font-size: 1.1rem;">
+                        <i class="bi bi-question-diamond-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Charts Section -->
+    <div class="row g-4 mb-4">
+        <!-- Monthly Issue & Return Statistics Chart -->
+        <div class="col-lg-8">
+            <div class="card card-custom h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-0">Monthly Circulation Trends</h5>
+                        <small class="text-muted">Comparative trends of books issued vs returned over the last 6 months</small>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill small fw-bold">Live Synced</span>
+                </div>
+                <div style="height: 310px;">
+                    <canvas id="monthlyIssueChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Book Category Breakdown Doughnut Chart -->
+        <div class="col-lg-4">
+            <div class="card card-custom h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-0">Category Breakdown</h5>
+                        <small class="text-muted">Collection volume distribution</small>
+                    </div>
+                </div>
+                <div style="height: 310px;" class="d-flex align-items-center justify-content-center">
+                    <canvas id="categoryPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tables & Monitoring Panels Grid -->
+    <div class="row g-4 mb-4">
+        <!-- Recent Book Issues -->
+        <div class="col-lg-6">
+            <div class="card card-custom h-100 p-0 overflow-hidden">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light-subtle">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-primary"></i> Recent Book Issues</h6>
+                    <a href="{{ url_for('issues.list_issues') }}" class="small fw-bold text-primary">View All &rarr;</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>Issue Code</th>
+                                <th>Book Title</th>
+                                <th>Student</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for issue in recent_issues %}
+                            <tr>
+                                <td><span class="fw-bold text-primary">{{ issue.issue_code }}</span></td>
+                                <td>{{ issue.book.title|truncate(22, True, '...') }}</td>
+                                <td>{{ issue.student.name|truncate(15, True, '...') }}</td>
+                                <td>{{ issue.due_date.strftime('%b %d') }}</td>
+                                <td>
+                                    {% if issue.status == 'returned' %}
+                                    <span class="badge-status badge-status-success">Returned</span>
+                                    {% elif issue.is_overdue %}
+                                    <span class="badge-status badge-status-danger">Overdue</span>
+                                    {% else %}
+                                    <span class="badge-status badge-status-info">Issued</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No recent issues found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overdue Alerts & Notifications Panel -->
+        <div class="col-lg-6">
+            <div class="card card-custom h-100 p-0 overflow-hidden">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-danger-subtle text-danger">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i> Overdue Loans Requiring Attention</h6>
+                    <span class="badge bg-danger">{{ overdue_list|length }} Urgent</span>
+                </div>
+                <div class="p-3">
+                    {% for over in overdue_list %}
+                    <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded border bg-light-subtle">
+                        <div>
+                            <div class="fw-bold text-danger">{{ over.book.title }}</div>
+                            <small class="text-muted">Student: {{ over.student.name }} ({{ over.student.phone }})</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-danger mb-1">{{ over.overdue_days }} Days Late</span>
+                            <div>
+                                <a href="{{ url_for('issues.return_book', issue_id=over.id) }}" class="btn btn-xs btn-outline-danger py-0 px-2 small">Process Return</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-success">
+                        <i class="bi bi-check2-circle fs-1"></i>
+                        <p class="mb-0 mt-2 fw-bold">All book checkouts are currently on schedule!</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popular Books and Recently Added Books -->
+    <div class="row g-4">
+        <!-- Popular Books -->
+        <div class="col-lg-6">
+            <div class="card card-custom h-100 p-0 overflow-hidden">
+                <div class="p-3 border-bottom bg-light-subtle">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-fire me-2 text-warning"></i> Most Popular Books</h6>
+                </div>
+                <div class="p-3">
+                    {% for bk, count in popular_books %}
+                    <div class="d-flex align-items-center gap-3 mb-3 pb-2 border-bottom">
+                        <div class="fw-bold text-muted fs-5" style="width: 25px;">#{{ loop.index }}</div>
+                        <img src="{{ url_for('uploaded_file', filename='book_covers/' + bk.cover_image) if bk.cover_image != 'default_book_cover.png' else url_for('static', filename='images/default_book_cover.png') }}" alt="Cover" style="width: 42px; height: 56px; object-fit: cover; border-radius: 4px;" onerror="this.src='/static/images/default_book_cover.png'">
+                        <div class="flex-grow-1">
+                            <a href="{{ url_for('books.details', book_id=bk.id) }}" class="fw-bold text-dark text-decoration-none">{{ bk.title }}</a>
+                            <div class="text-muted small">By {{ bk.author }}</div>
+                        </div>
+                        <span class="badge bg-primary-subtle text-primary">{{ count }} Checkouts</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Added Books -->
+        <div class="col-lg-6">
+            <div class="card card-custom h-100 p-0 overflow-hidden">
+                <div class="p-3 border-bottom bg-light-subtle">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-sparkles me-2 text-primary"></i> Recently Cataloged Books</h6>
+                </div>
+                <div class="p-3">
+                    {% for bk in recently_added %}
+                    <div class="d-flex align-items-center gap-3 mb-3 pb-2 border-bottom">
+                        <img src="{{ url_for('uploaded_file', filename='book_covers/' + bk.cover_image) if bk.cover_image != 'default_book_cover.png' else url_for('static', filename='images/default_book_cover.png') }}" alt="Cover" style="width: 42px; height: 56px; object-fit: cover; border-radius: 4px;" onerror="this.src='/static/images/default_book_cover.png'">
+                        <div class="flex-grow-1">
+                            <a href="{{ url_for('books.details', book_id=bk.id) }}" class="fw-bold text-dark text-decoration-none">{{ bk.title }}</a>
+                            <div class="text-muted small">ISBN: {{ bk.isbn }} | Shelf: {{ bk.shelf_location or 'N/A' }}</div>
+                        </div>
+                        <span class="badge bg-success-subtle text-success">{{ bk.available_copies }} Avail</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const monthlyLabels = {{ monthly_labels | tojson }};
+    const issueData = {{ monthly_issue_data | tojson }};
+    const returnData = {{ monthly_return_data | tojson }};
+    const catLabels = {{ cat_labels | tojson }};
+    const catCounts = {{ cat_counts | tojson }};
+
+    initDashboardCharts(monthlyLabels, issueData, returnData, catLabels, catCounts);
+});
+</script>
+{% endblock %}
+

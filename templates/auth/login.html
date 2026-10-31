@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - Academic Library Portal{% endblock %}
+{% block page_title %}Sign In{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center py-4">
+    <div class="col-xl-9 col-lg-10">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="row g-0">
+                <!-- Left Info Banner -->
+                <div class="col-lg-5 p-5 text-white d-flex flex-column justify-content-between" style="background: linear-gradient(135deg, #1e40af 0%, #0f172a 100%);">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-4">
+                            <div class="sidebar-logo-icon">
+                                <i class="bi bi-book-half"></i>
+                            </div>
+                            <h4 class="fw-bold mb-0 text-white">{{ library_name }}</h4>
+                        </div>
+                        <h2 class="fw-bold mb-3">Enterprise Library Management</h2>
+                        <p class="opacity-75 small">
+                            Unified multi-role platform for institutional research, book cataloging, circulation tracking, and digital resources.
+                        </p>
+                    </div>
+
+                    <!-- Quick Demo Credentials helper pills for testing -->
+                    <div class="p-3 rounded-3 mt-4" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15);">
+                        <div class="small fw-bold text-warning mb-2"><i class="bi bi-key-fill me-1"></i> Quick Test Credentials:</div>
+                        <div class="d-flex flex-column gap-2 small">
+                            <button type="button" class="btn btn-sm btn-light text-start py-1 px-2 demo-btn" onclick="fillCreds('admin', 'admin123', 'admin')">
+                                <strong>Admin:</strong> admin / admin123
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light text-start py-1 px-2 demo-btn" onclick="fillCreds('LIB-001', 'librarian123', 'librarian')">
+                                <strong>Librarian:</strong> LIB-001 / librarian123
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light text-start py-1 px-2 demo-btn" onclick="fillCreds('STU-2026-001', 'student123', 'student')">
+                                <strong>Student:</strong> STU-2026-001 / student123
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Form Area -->
+                <div class="col-lg-7 p-5 bg-white">
+                    <div class="mb-4">
+                        <h3 class="fw-bold text-dark mb-1">Sign In to Your Account</h3>
+                        <p class="text-muted small">Enter your credentials to access the digital portal.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('auth.login') }}">
+                        <!-- Role Selector Tabs -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Select Portal Role</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="role_type" id="roleAuto" value="auto" checked>
+                                <label class="btn btn-outline-primary btn-sm fw-bold" for="roleAuto">Auto Detect</label>
+
+                                <input type="radio" class="btn-check" name="role_type" id="roleAdmin" value="admin">
+                                <label class="btn btn-outline-primary btn-sm fw-bold" for="roleAdmin">Admin</label>
+
+                                <input type="radio" class="btn-check" name="role_type" id="roleLibrarian" value="librarian">
+                                <label class="btn btn-outline-primary btn-sm fw-bold" for="roleLibrarian">Librarian</label>
+
+                                <input type="radio" class="btn-check" name="role_type" id="roleStudent" value="student">
+                                <label class="btn btn-outline-primary btn-sm fw-bold" for="roleStudent">Student</label>
+                            </div>
+                        </div>
+
+                        <!-- Username / ID / Email Input -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold" for="login_id">Username / ID / Email Address</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-person-fill"></i></span>
+                                <input type="text" class="form-control form-control-custom border-start-0" id="login_id" name="login_id" placeholder="e.g. admin or STU-2026-001 or email" required autofocus>
+                            </div>
+                        </div>
+
+                        <!-- Password Input -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label small fw-bold" for="password">Password</label>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock-fill"></i></span>
+                                <input type="password" class="form-control form-control-custom border-start-0" id="password" name="password" placeholder="••••••••" required>
+                                <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility()"><i class="bi bi-eye" id="toggleIcon"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Remember Me -->
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="remember" name="remember">
+                                <label class="form-check-label small text-muted" for="remember">Keep me signed in</label>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+                            <i class="bi bi-box-arrow-in-right"></i> Sign In to Portal
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <span class="small text-muted">Are you a new student?</span>
+                        <a href="{{ url_for('auth.register') }}" class="small fw-bold text-primary ms-1">Register for an account</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function fillCreds(loginId, pw, role) {
+    document.getElementById('login_id').value = loginId;
+    document.getElementById('password').value = pw;
+    if (role === 'admin') document.getElementById('roleAdmin').checked = true;
+    else if (role === 'librarian') document.getElementById('roleLibrarian').checked = true;
+    else if (role === 'student') document.getElementById('roleStudent').checked = true;
+    else document.getElementById('roleAuto').checked = true;
+}
+
+function togglePasswordVisibility() {
+    const pw = document.getElementById('password');
+    const icon = document.getElementById('toggleIcon');
+    if (pw.type === 'password') {
+        pw.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        pw.type = 'password';
+        icon.className = 'bi bi-eye';
+    }
+}
+</script>
+{% endblock %}
+

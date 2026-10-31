@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Library ID Card - {{ student.name }}{% endblock %}
+{% block page_title %}Official Student Library Identity Card{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+    <!-- Controls (Hidden on Print) -->
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <div>
+            <h4 class="fw-bold mb-1">Student Library Credential Card</h4>
+            <p class="text-muted small mb-0">Present this QR barcode card at the circulation counter for instant book checkout.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-primary-custom">
+                <i class="bi bi-printer-fill me-1"></i> Print ID Card
+            </button>
+            <a href="javascript:history.back()" class="btn btn-outline-custom">Back</a>
+        </div>
+    </div>
+
+    <!-- Printable ID Card Layout -->
+    <div class="student-id-card-wrapper">
+        <div class="student-id-inner shadow-sm">
+            <!-- Header -->
+            <div class="id-card-header">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-1">
+                    <i class="bi bi-book-half fs-4"></i>
+                    <h5 class="fw-bold mb-0 text-white tracking-wide">{{ library_name }}</h5>
+                </div>
+                <div class="small opacity-75 text-uppercase" style="letter-spacing: 0.1em; font-size: 0.72rem;">Official Scholar Circulation Card</div>
+            </div>
+
+            <!-- Body Details -->
+            <div class="id-card-body">
+                <div class="text-center">
+                    <img src="{{ url_for('static', filename='images/default_avatar.png') }}" alt="{{ student.name }}" class="id-avatar mb-2 shadow-sm">
+                    <span class="badge bg-success-subtle text-success small border border-success-subtle d-block py-1">AUTHORIZED</span>
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold text-dark mb-1">{{ student.name }}</h5>
+                    <div class="badge bg-primary text-white mb-2" style="font-size: 0.85rem; letter-spacing: 0.05em;">{{ student.student_id }}</div>
+                    
+                    <div class="small mb-1">
+                        <span class="text-muted">Dept:</span> <strong>{{ student.department }}</strong>
+                    </div>
+                    <div class="small mb-1">
+                        <span class="text-muted">Year:</span> <strong>{{ student.academic_year }}</strong>
+                    </div>
+                    <div class="small mb-1">
+                        <span class="text-muted">Phone:</span> <strong>{{ student.phone }}</strong>
+                    </div>
+                    <div class="small">
+                        <span class="text-muted">Email:</span> <strong>{{ student.email }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code Barcode Footer -->
+            <div class="id-qr-box bg-light px-3 py-3">
+                {% if student.qr_code_image %}
+                <img src="{{ url_for('uploaded_file', filename='qr_codes/' + student.qr_code_image) }}" alt="Student QR Code" style="width: 100px; height: 100px;" class="border p-1 bg-white rounded">
+                {% endif %}
+                <div class="text-muted small mt-1" style="font-size: 0.7rem;">
+                    SCAN FOR COUNTER VERIFICATION &bull; NON-TRANSFERABLE
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

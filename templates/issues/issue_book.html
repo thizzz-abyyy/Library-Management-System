@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Issue Book - {{ library_name }}{% endblock %}
+{% block page_title %}Circulation Counter - Issue Book{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-9">
+        <div class="card card-custom p-4 p-md-5">
+            <!-- Header with QR Scanner Launcher -->
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="kpi-icon-box kpi-icon-primary">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-1">Issue Book to Scholar</h4>
+                        <p class="text-muted small mb-0">Scan barcode/QR code or enter IDs to process loan.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#qrScannerModal" onclick="initScanner('issue')">
+                    <i class="bi bi-qr-code-scan me-1"></i> Scan with Camera
+                </button>
+            </div>
+
+            <form method="POST" action="{{ url_for('issues.issue_book') }}" id="issueForm">
+                <!-- 1. Student Selection -->
+                <div class="mb-4">
+                    <label class="form-label small fw-bold" for="student_id_input">
+                        Student ID / Roll No <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-person-fill"></i></span>
+                        <input type="text" class="form-control form-control-custom" id="student_id_input" name="student_id" value="{{ prefill_student or '' }}" placeholder="e.g. STU-2026-001 or student name" required autocomplete="off">
+                        <button type="button" class="btn btn-outline-secondary" onclick="lookupStudent()"><i class="bi bi-search"></i> Verify</button>
+                    </div>
+                    <!-- Live verification preview card -->
+                    <div id="studentPreview" class="p-3 bg-light rounded-3 mt-2 border d-none">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold text-dark" id="stuPrevName"></span> 
+                                <span class="badge bg-primary ms-1" id="stuPrevId"></span>
+                                <div class="small text-muted" id="stuPrevDept"></div>
+                            </div>
+                            <span class="badge bg-success" id="stuPrevStatus">Eligible</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Book Selection -->
+                <div class="mb-4">
+                    <label class="form-label small fw-bold" for="book_id_input">
+                        Book ID / ISBN / Title <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-book-half"></i></span>
+                        <input type="text" class="form-control form-control-custom" id="book_id_input" name="book_id" value="{{ prefill_book or '' }}" placeholder="e.g. 1 or 978-0132350884 or Clean Code" required autocomplete="off">
+                        <button type="button" class="btn btn-outline-secondary" onclick="lookupBook()"><i class="bi bi-search"></i> Verify</button>
+                    </div>
+                    <!-- Live book verification card -->
+                    <div id="bookPreview" class="p-3 bg-light rounded-3 mt-2 border d-none">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold text-dark" id="bkPrevTitle"></span>
+                                <div class="small text-muted" id="bkPrevAuthor"></div>
+                            </div>
+                            <span class="badge" id="bkPrevStock"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Loan Parameters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Issue Date</label>
+                        <input type="text" class="form-control form-control-custom bg-light" value="Today (Automatically Recorded)" disabled>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Loan Duration (Days)</label>
+                        <input type="number" name="duration_days" class="form-control form-control-custom" value="{{ default_days }}" min="1" max="90" required>
+                    </div>
+                </div>
+
+                <!-- 4. Notes -->
+                <div class="mb-4">
+                    <label class="form-label small fw-bold">Circulation Desk Remarks (Optional)</label>
+                    <textarea name="notes" class="form-control form-control-custom" rows="2" placeholder="Condition note or special dispensation..."></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                    <a href="{{ url_for('issues.list_issues') }}" class="btn btn-outline-custom">Cancel</a>
+                    <button type="submit" class="btn btn-primary-custom px-4" id="submitIssueBtn">
+                        <i class="bi bi-check-circle-fill me-1"></i> Confirm &amp; Issue Book
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Camera QR Scanner Modal -->
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-camera-fill me-2"></i> Scan QR Code / Barcode</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="stopCameraScanner()"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div id="cameraErrorMessage" class="alert alert-warning d-none small"></div>
+                <div id="qrReaderViewport" style="width: 100%; min-height: 280px; background: #000; border-radius: 8px; overflow: hidden;"></div>
+                <small class="text-muted d-block mt-3">Hold book QR code or student ID card steadily in front of the lens.</small>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="stopCameraScanner()">Close Scanner</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function initScanner() {
+    startCameraScanner('qrReaderViewport', function(decodedText) {
+        console.log("Scanner Result:", decodedText);
+        const parsed = parseQrPayload(decodedText);
+        
+        if (parsed.type === 'book') {
+            document.getElementById('book_id_input').value = parsed.isbn || parsed.id;
+            lookupBook();
+        } else if (parsed.type === 'student') {
+            document.getElementById('student_id_input').value = parsed.id;
+            lookupStudent();
+        } else {
+            // Raw text: check if matches STU or ISBN
+            if (decodedText.startsWith('STU')) {
+                document.getElementById('student_id_input').value = decodedText;
+                lookupStudent();
+            } else {
+                document.getElementById('book_id_input').value = decodedText;
+                lookupBook();
+            }
+        }
+        
+        // Hide modal
+        const modalEl = document.getElementById('qrScannerModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    });
+}
+
+function lookupStudent() {
+    const val = document.getElementById('student_id_input').value.trim();
+    if (!val) return;
+    
+    fetch(`/students/api/search?q=${encodeURIComponent(val)}`)
+        .then(res => res.json())
+        .then(data => {
+            const preview = document.getElementById('studentPreview');
+            if (data.length > 0) {
+                const s = data[0];
+                document.getElementById('student_id_input').value = s.student_id;
+                document.getElementById('stuPrevName').textContent = s.name;
+                document.getElementById('stuPrevId').textContent = s.student_id;
+                document.getElementById('stuPrevDept').textContent = `${s.department} (${s.academic_year})`;
+                
+                const statusBadge = document.getElementById('stuPrevStatus');
+                if (s.status !== 'active') {
+                    statusBadge.className = 'badge bg-danger';
+                    statusBadge.textContent = 'Suspended';
+                } else if (s.pending_fines > 0) {
+                    statusBadge.className = 'badge bg-warning text-dark';
+                    statusBadge.textContent = `Pending Fine: $${s.pending_fines}`;
+                } else {
+                    statusBadge.className = 'badge bg-success';
+                    statusBadge.textContent = `${s.active_issues} Active Loans`;
+                }
+                preview.classList.remove('d-none');
+            }
+        });
+}
+
+function lookupBook() {
+    const val = document.getElementById('book_id_input').value.trim();
+    if (!val) return;
+    
+    fetch(`/books/api/search?q=${encodeURIComponent(val)}`)
+        .then(res => res.json())
+        .then(data => {
+            const preview = document.getElementById('bookPreview');
+            if (data.length > 0) {
+                const b = data[0];
+                document.getElementById('book_id_input').value = b.id;
+                document.getElementById('bkPrevTitle').textContent = b.title;
+                document.getElementById('bkPrevAuthor').textContent = `By ${b.author} | ISBN: ${b.isbn}`;
+                
+                const stockBadge = document.getElementById('bkPrevStock');
+                if (b.available_copies > 0) {
+                    stockBadge.className = 'badge bg-success';
+                    stockBadge.textContent = `${b.available_copies} In Stock`;
+                } else {
+                    stockBadge.className = 'badge bg-danger';
+                    stockBadge.textContent = 'Out of Stock';
+                }
+                preview.classList.remove('d-none');
+            }
+        });
+}
+
+// Auto-trigger verify if prefilled
+window.addEventListener('load', function() {
+    if (document.getElementById('student_id_input').value) lookupStudent();
+    if (document.getElementById('book_id_input').value) lookupBook();
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Librarians - {{ library_name }}{% endblock %}
+{% block page_title %}Librarian Staff Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Library Circulation Staff</h4>
+            <p class="text-muted small mb-0">Assign staff privileges, monitor access credentials, and manage circulation roles.</p>
+        </div>
+        <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addLibrarianModal">
+            <i class="bi bi-person-plus-fill"></i> Add New Librarian
+        </button>
+    </div>
+
+    <!-- Librarians Table -->
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>ID Code</th>
+                        <th>Name</th>
+                        <th>Contact Email</th>
+                        <th>Phone</th>
+                        <th>Assigned Permissions</th>
+                        <th>Status</th>
+                        <th>Joined Date</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lib in librarians %}
+                    <tr>
+                        <td><span class="badge bg-dark">{{ lib.librarian_id }}</span></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="{{ url_for('static', filename='images/default_avatar.png') }}" alt="" class="rounded-circle" style="width: 32px; height: 32px;">
+                                <span class="fw-bold">{{ lib.name }}</span>
+                            </div>
+                        </td>
+                        <td>{{ lib.email }}</td>
+                        <td>{{ lib.phone or 'N/A' }}</td>
+                        <td>
+                            {% for perm in lib.permissions.split(',') %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1" style="font-size: 0.7rem;">{{ perm }}</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% if lib.status == 'active' %}
+                            <span class="badge-status badge-status-success">Active</span>
+                            {% else %}
+                            <span class="badge-status badge-status-danger">Deactivated</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ lib.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editLibrarianModal{{ lib.id }}">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-action="{{ url_for('admin.librarians') }}" data-name="{{ lib.name }}" onclick="document.querySelector('#deleteForm').innerHTML = '<input type=\'hidden\' name=\'action\' value=\'delete\'><input type=\'hidden\' name=\'id\' value=\'{{ lib.id }}\'>';">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Edit Modal for this Librarian -->
+                    <div class="modal fade" id="editLibrarianModal{{ lib.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> Edit Librarian Details</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('admin.librarians') }}">
+                                    <input type="hidden" name="action" value="edit">
+                                    <input type="hidden" name="id" value="{{ lib.id }}">
+                                    <div class="modal-body p-4">
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Full Name</label>
+                                            <input type="text" name="name" class="form-control" value="{{ lib.name }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Email (Login Identity)</label>
+                                            <input type="email" class="form-control" value="{{ lib.email }}" disabled>
+                                            <small class="text-muted">Email identity cannot be altered.</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Phone Number</label>
+                                            <input type="text" name="phone" class="form-control" value="{{ lib.phone or '' }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Update Password (leave blank to keep current)</label>
+                                            <input type="password" name="password" class="form-control" placeholder="New Password">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Status</label>
+                                            <select name="status" class="form-select">
+                                                <option value="active" {% if lib.status == 'active' %}selected{% endif %}>Active</option>
+                                                <option value="inactive" {% if lib.status == 'inactive' %}selected{% endif %}>Deactivated</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Granted Module Permissions</label>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                {% for p in ['books', 'issues', 'returns', 'reservations', 'students', 'fines', 'reports'] %}
+                                                <div class="form-check me-3">
+                                                    <input class="form-check-input" type="checkbox" name="permissions" value="{{ p }}" id="perm_{{ lib.id }}_{{ p }}" {% if p in lib.permissions %}checked{% endif %}>
+                                                    <label class="form-check-label text-capitalize small" for="perm_{{ lib.id }}_{{ p }}">{{ p }}</label>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No librarian staff records created yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Librarian Modal -->
+<div class="modal fade" id="addLibrarianModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-person-plus-fill me-2"></i> Register New Librarian</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.librarians') }}">
+                <input type="hidden" name="action" value="add">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Eleanor Rigby" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" name="email" class="form-control" placeholder="staff@apex.edu" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Phone Number</label>
+                        <input type="text" name="phone" class="form-control" placeholder="+1-555-0100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Initial Password <span class="text-danger">*</span></label>
+                        <input type="password" name="password" class="form-control" placeholder="Min. 6 characters" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Module Permissions</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for p in ['books', 'issues', 'returns', 'reservations', 'students', 'fines', 'reports'] %}
+                            <div class="form-check me-3">
+                                <input class="form-check-input" type="checkbox" name="permissions" value="{{ p }}" id="new_perm_{{ p }}" checked>
+                                <label class="form-check-label text-capitalize small" for="new_perm_{{ p }}">{{ p }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Create Librarian</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

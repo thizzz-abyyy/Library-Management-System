@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Find Book Physical Location - {{ library_name }}{% endblock %}
+{% block page_title %}Smart Book Location &amp; Shelf Finder{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header Banner -->
+    <div class="card card-custom p-4 mb-4" style="background: linear-gradient(135deg, #1e40af 0%, #0284c7 100%); color: white;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <span class="badge bg-white text-primary px-3 py-1 rounded-pill fw-bold mb-2">
+                    <i class="bi bi-geo-alt-fill me-1"></i> Exact Physical Shelf Positioning
+                </span>
+                <h3 class="fw-bold mb-1 text-white">Locate Any Book in the Library</h3>
+                <p class="mb-0 opacity-90 small">
+                    Find the exact Floor, Academic Section, Room, Rack, Shelf Number, and position slot for any volume.
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('locations.visual_map') }}" class="btn btn-light btn-sm fw-bold text-primary shadow-sm">
+                    <i class="bi bi-map-fill me-1"></i> Interactive Shelf Map
+                </a>
+                <a href="{{ url_for('locations.scan_location') }}" class="btn btn-outline-light btn-sm fw-bold">
+                    <i class="bi bi-qr-code-scan me-1"></i> Scan to Locate
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="card card-custom mb-4 p-3">
+        <form method="GET" action="{{ url_for('locations.find_book') }}" class="row g-2 align-items-center">
+            <div class="col-lg-5 col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control form-control-custom" placeholder="Search by Book Title, ID, ISBN, Author..." value="{{ search }}" autofocus>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-3">
+                <select name="category" class="form-select form-select-custom">
+                    <option value="">All Academic Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if selected_category == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-3">
+                <select name="floor" class="form-select form-select-custom">
+                    <option value="">All Library Floors</option>
+                    {% for fl in floors %}
+                    <option value="{{ fl.id }}" {% if selected_floor == fl.id %}selected{% endif %}>{{ fl.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">
+                    <i class="bi bi-search"></i> Locate
+                </button>
+                <a href="{{ url_for('locations.find_book') }}" class="btn btn-outline-custom">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Section -->
+    <div class="row g-4 mb-4">
+        {% for book in books %}
+        <div class="col-12">
+            <div class="card card-custom p-4">
+                <div class="row g-3 align-items-center">
+                    <!-- Book Cover & Quick Badges -->
+                    <div class="col-lg-2 col-md-3 text-center">
+                        <img src="{{ url_for('uploaded_file', filename='book_covers/' + book.cover_image) if book.cover_image != 'default_book_cover.png' else url_for('static', filename='images/default_book_cover.png') }}" alt="{{ book.title }}" class="img-fluid rounded-3 shadow-sm mb-2" style="max-height: 150px; object-fit: cover;" onerror="this.src='/static/images/default_book_cover.png'">
+                        {% if book.is_available %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle d-block py-1">
+                            <i class="bi bi-check-circle-fill me-1"></i> {{ book.available_copies }} of {{ book.total_copies }} Available
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle d-block py-1">
+                            <i class="bi bi-x-circle-fill me-1"></i> Checked Out
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Book Information & Breadcrumb -->
+                    <div class="col-lg-10 col-md-9">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <span class="badge bg-primary-subtle text-primary fw-bold mb-1">{{ book.category_name }}</span>
+                                <h4 class="fw-bold mb-1 text-dark">
+                                    <a href="{{ url_for('books.details', book_id=book.id) }}" class="text-decoration-none text-dark hover-primary">{{ book.title }}</a>
+                                </h4>
+                                <div class="text-muted small">
+                                    By <strong class="text-dark">{{ book.author }}</strong> &bull; ISBN: <code>{{ book.isbn }}</code> &bull; Book ID: <strong>#{{ book.id }}</strong>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('books.details', book_id=book.id) }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-info-circle me-1"></i> Book Details
+                                </a>
+                                {% set prim = book.primary_location %}
+                                {% if prim and prim.shelf %}
+                                <a href="{{ url_for('locations.visual_map', floor=prim.shelf.rack.room.floor_id, room=prim.shelf.rack.room_id, rack=prim.shelf.rack_id, shelf=prim.shelf_id) }}" class="btn btn-primary-custom btn-sm">
+                                    <i class="bi bi-geo-fill me-1"></i> View on Shelf Map
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Primary Physical Location Path Breadcrumb -->
+                        <div class="p-3 my-2 rounded-3 border" style="background-color: var(--bg-surface-hover);">
+                            <div class="small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.05em; font-size: 0.75rem;">
+                                <i class="bi bi-compass-fill text-primary me-1"></i> Exact Physical Location Path
+                            </div>
+                            <div class="d-flex flex-wrap align-items-center gap-2 fw-bold text-primary fs-6">
+                                {% if book.primary_location and book.primary_location.shelf %}
+                                    {% set sh = book.primary_location.shelf %}
+                                    <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-layers me-1 text-secondary"></i> {{ sh.rack.room.floor.name }}</span>
+                                    <i class="bi bi-arrow-right text-muted"></i>
+                                    <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-bookmark me-1 text-secondary"></i> {{ sh.rack.section.name if sh.rack.section else (book.category_rel.name if book.category_rel else 'General') }}</span>
+                                    <i class="bi bi-arrow-right text-muted"></i>
+                                    <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-door-open me-1 text-secondary"></i> {{ sh.rack.room.room_number }}</span>
+                                    <i class="bi bi-arrow-right text-muted"></i>
+                                    <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-grid-3x2 me-1 text-secondary"></i> {{ sh.rack.rack_number }}</span>
+                                    <i class="bi bi-arrow-right text-muted"></i>
+                                    <span class="badge bg-primary text-white px-2 py-1"><i class="bi bi-bookshelf me-1"></i> {{ sh.shelf_number }}</span>
+                                    {% if book.primary_location.position_code %}
+                                    <i class="bi bi-arrow-right text-muted"></i>
+                                    <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-pin-map-fill me-1"></i> Position {{ book.primary_location.position_code }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-secondary small fst-italic">{{ book.primary_location_display }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Physical Copies Location Breakdown (Accordion or Table) -->
+                        {% if book.locations.count() > 0 %}
+                        <div class="mt-2">
+                            <button class="btn btn-xs btn-outline-secondary py-1 px-2 small" type="button" data-bs-toggle="collapse" data-bs-target="#copiesCollapse{{ book.id }}">
+                                <i class="bi bi-list-nested me-1"></i> View All {{ book.locations.count() }} Physical Copy Locations &darr;
+                            </button>
+                            <div class="collapse mt-2" id="copiesCollapse{{ book.id }}">
+                                <div class="table-responsive border rounded-3">
+                                    <table class="table table-sm table-custom mb-0" style="font-size: 0.8rem;">
+                                        <thead>
+                                            <tr>
+                                                <th>Copy #</th>
+                                                <th>Barcode</th>
+                                                <th>Floor &amp; Room</th>
+                                                <th>Rack &amp; Shelf</th>
+                                                <th>Position</th>
+                                                <th>Current Status</th>
+                                                <th>Last Verified</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for loc in book.locations %}
+                                            <tr>
+                                                <td><span class="fw-bold">Copy #{{ loc.copy_number }}</span></td>
+                                                <td><code>{{ loc.barcode }}</code></td>
+                                                <td>{{ loc.shelf.rack.room.floor.name if loc.shelf else '-' }} &bull; {{ loc.shelf.rack.room.room_number if loc.shelf else '-' }}</td>
+                                                <td>
+                                                    {% if loc.shelf %}
+                                                    <strong>{{ loc.shelf.rack.rack_number }}</strong> &bull; {{ loc.shelf.shelf_number }}
+                                                    {% else %}
+                                                    <span class="text-muted">Unassigned</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td><span class="badge bg-light text-dark border">{{ loc.position_code or 'N/A' }}</span></td>
+                                                <td>
+                                                    {% if loc.status == 'on_shelf' %}
+                                                    <span class="badge bg-success-subtle text-success">On Shelf</span>
+                                                    {% elif loc.status == 'issued' %}
+                                                    <span class="badge bg-primary-subtle text-primary">Issued on Loan</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary-subtle text-secondary">{{ loc.status }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-muted">{{ loc.last_confirmed_at.strftime('%Y-%m-%d') if loc.last_confirmed_at else 'Initial' }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted fs-1 mb-2"><i class="bi bi-geo-alt"></i></div>
+            <h5 class="fw-bold">No books found</h5>
+            <p class="text-muted">Try searching with a different book title, author, or ISBN identifier.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - Digital Library Portal{% endblock %}
+{% block page_title %}Digital Library Hub{% endblock %}
+
+{% block content %}
+<div class="container py-2">
+    <!-- Hero Banner -->
+    <div class="row align-items-center mb-5 py-4 px-4 rounded-4" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; box-shadow: var(--shadow-lg);">
+        <div class="col-lg-7">
+            <span class="badge bg-white text-primary px-3 py-2 rounded-pill fw-bold mb-3 shadow-sm">
+                <i class="bi bi-patch-check-fill text-primary me-1"></i> Premier Academic Library
+            </span>
+            <h1 class="display-5 fw-bold mb-3">Explore, Discover &amp; Manage Academic Excellence</h1>
+            <p class="lead opacity-90 mb-4">
+                Access over thousands of textbooks, reference works, research journals, and digital e-books in one unified digital ecosystem.
+            </p>
+            <div class="d-flex flex-wrap gap-3">
+                <a href="{{ url_for('auth.login') }}" class="btn btn-light btn-lg px-4 fw-bold text-primary shadow-sm">
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Access Portal
+                </a>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-outline-light btn-lg px-4 fw-bold">
+                    <i class="bi bi-person-plus-fill me-2"></i> Register as Student
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-5 text-center d-none d-lg-block">
+            <img src="{{ url_for('static', filename='images/default_book_cover.png') }}" alt="Library Illustration" class="img-fluid rounded-4 shadow-lg" style="max-height: 280px; border: 4px solid rgba(255,255,255,0.2);">
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-primary">{{ total_books }}</div>
+                    <div class="kpi-label">Physical Library Volumes</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-primary">
+                    <i class="bi bi-book"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-success">{{ total_titles }}</div>
+                    <div class="kpi-label">Unique Catalog Titles</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-success">
+                    <i class="bi bi-journal-bookmark"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div>
+                    <div class="kpi-value text-info">{{ total_students }}</div>
+                    <div class="kpi-label">Registered Active Scholars</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-info">
+                    <i class="bi bi-people"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Search & Categories -->
+    <div class="card card-custom mb-5">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-3 mb-lg-0">
+                <h4 class="fw-bold mb-1">Search the Central Catalog</h4>
+                <p class="text-muted small mb-0">Look up any book by title, author name, or ISBN identifier.</p>
+            </div>
+            <div class="col-lg-6">
+                <form action="{{ url_for('books.list_books') }}" method="GET" class="d-flex gap-2">
+                    <input type="text" name="q" class="form-control form-control-custom" placeholder="e.g. Clean Code, Algorithms, 978-013...">
+                    <button type="submit" class="btn btn-primary-custom px-4">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </form>
+            </div>
+        </div>
+        <hr class="my-4">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="text-muted small fw-bold me-2">Browse Categories:</span>
+            {% for cat in categories %}
+            <a href="{{ url_for('books.list_books', category=cat.id) }}" class="btn btn-sm btn-outline-custom">
+                <i class="bi {{ cat.icon }} me-1 text-primary"></i> {{ cat.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Featured Books Showcase -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-0">Featured Books Available for Borrowing</h4>
+            <small class="text-muted">Instant loan availability at the circulation desk</small>
+        </div>
+        <a href="{{ url_for('books.list_books') }}" class="btn btn-sm btn-outline-primary fw-bold">
+            View All Catalog &rarr;
+        </a>
+    </div>
+
+    <div class="row g-4 mb-5">
+        {% for book in featured_books %}
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="book-card">
+                <div class="book-cover-wrap">
+                    <img src="{{ url_for('uploaded_file', filename='book_covers/' + book.cover_image) if book.cover_image != 'default_book_cover.png' else url_for('static', filename='images/default_book_cover.png') }}" alt="{{ book.title }}" class="book-cover-img" onerror="this.src='/static/images/default_book_cover.png'">
+                    <span class="badge bg-success book-avail-badge">
+                        <i class="bi bi-check-circle-fill me-1"></i> {{ book.available_copies }} In Stock
+                    </span>
+                </div>
+                <div class="book-card-body">
+                    <div class="book-category-tag">{{ book.category_name }}</div>
+                    <h5 class="book-title" title="{{ book.title }}">{{ book.title }}</h5>
+                    <div class="book-author">By {{ book.author }}</div>
+                    <div class="mt-auto d-flex justify-content-between align-items-center pt-2 border-top">
+                        <span class="small text-muted"><i class="bi bi-geo-alt"></i> {{ book.shelf_location or 'Main Stacks' }}</span>
+                        <a href="{{ url_for('books.details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">
+                            Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Multi-Role Login Cards -->
+    <div class="row g-4 mt-2">
+        <div class="col-md-4">
+            <div class="card card-custom text-center p-4 h-100">
+                <div class="kpi-icon-box kpi-icon-primary mx-auto mb-3">
+                    <i class="bi bi-shield-lock-fill"></i>
+                </div>
+                <h5 class="fw-bold">Administrator</h5>
+                <p class="text-muted small">Manage staff, oversee system settings, audit logs, and configure loan parameters.</p>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm mt-auto fw-bold">Admin Login</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-custom text-center p-4 h-100">
+                <div class="kpi-icon-box kpi-icon-success mx-auto mb-3">
+                    <i class="bi bi-person-badge-fill"></i>
+                </div>
+                <h5 class="fw-bold">Librarian Circulation</h5>
+                <p class="text-muted small">Process book checkout &amp; returns, verify QR codes, and collect fine payments.</p>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-success btn-sm mt-auto fw-bold">Librarian Login</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-custom text-center p-4 h-100">
+                <div class="kpi-icon-box kpi-icon-info mx-auto mb-3">
+                    <i class="bi bi-mortarboard-fill"></i>
+                </div>
+                <h5 class="fw-bold">Student Portal</h5>
+                <p class="text-muted small">Track active borrowed books, check due dates, reserve books, and read e-books.</p>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-info btn-sm mt-auto fw-bold">Student Portal</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

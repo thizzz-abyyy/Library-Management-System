@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Students - {{ library_name }}{% endblock %}
+{% block page_title %}Student Registry &amp; Borrowers{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Registered Student Scholars</h4>
+            <p class="text-muted small mb-0">Search students, view borrowing quotas, and generate library identification cards.</p>
+        </div>
+        <a href="{{ url_for('students.add') }}" class="btn btn-primary-custom">
+            <i class="bi bi-person-plus-fill"></i> Register New Student
+        </a>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card card-custom mb-4 p-3">
+        <form method="GET" action="{{ url_for('students.list_students') }}" class="row g-2 align-items-center">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control form-control-custom" placeholder="Search by name, student ID, email, phone..." value="{{ search }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="dept" class="form-select form-select-custom">
+                    <option value="">All Departments</option>
+                    {% for d in departments %}
+                    <option value="{{ d }}" {% if selected_dept == d %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select form-select-custom">
+                    <option value="">All Statuses</option>
+                    <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="suspended" {% if selected_status == 'suspended' %}selected{% endif %}>Suspended</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">Filter</button>
+                <a href="{{ url_for('students.list_students') }}" class="btn btn-outline-custom">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Students Table -->
+    <div class="card card-custom p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Student Name</th>
+                        <th>Department</th>
+                        <th>Academic Year</th>
+                        <th>Contact Email</th>
+                        <th>Phone</th>
+                        <th>Active Loans</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stu in students.items %}
+                    <tr>
+                        <td><span class="badge bg-dark">{{ stu.student_id }}</span></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="{{ url_for('static', filename='images/default_avatar.png') }}" alt="" class="rounded-circle" style="width: 32px; height: 32px;">
+                                <a href="{{ url_for('students.details', student_id=stu.id) }}" class="fw-bold text-dark text-decoration-none">{{ stu.name }}</a>
+                            </div>
+                        </td>
+                        <td>{{ stu.department }}</td>
+                        <td>{{ stu.academic_year }}</td>
+                        <td>{{ stu.email }}</td>
+                        <td>{{ stu.phone }}</td>
+                        <td>
+                            {% set cnt = stu.active_issues_count %}
+                            {% if cnt > 0 %}
+                            <span class="badge bg-primary rounded-pill">{{ cnt }} Borrowed</span>
+                            {% else %}
+                            <span class="text-muted small">0 Borrowed</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if stu.status == 'active' %}
+                            <span class="badge-status badge-status-success">Active</span>
+                            {% else %}
+                            <span class="badge-status badge-status-danger">Suspended</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('students.id_card', student_id=stu.id) }}" class="btn btn-outline-primary" title="Print Library ID Card">
+                                    <i class="bi bi-person-vcard"></i>
+                                </a>
+                                <a href="{{ url_for('students.details', student_id=stu.id) }}" class="btn btn-outline-secondary" title="View Profile">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('students.edit', student_id=stu.id) }}" class="btn btn-outline-secondary" title="Edit Student">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-action="{{ url_for('students.delete', student_id=stu.id) }}" data-name="{{ stu.name }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">No student records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if students.pages > 1 %}
+        <div class="p-3 border-top d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing page {{ students.page }} of {{ students.pages }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if students.has_prev %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('students.list_students', page=students.prev_num, q=search, dept=selected_dept, status=selected_status) }}">Previous</a></li>
+                    {% endif %}
+                    {% for p in students.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if p %}
+                            <li class="page-item {% if p == students.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('students.list_students', page=p, q=search, dept=selected_dept, status=selected_status) }}">{{ p }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if students.has_next %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('students.list_students', page=students.next_num, q=search, dept=selected_dept, status=selected_status) }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

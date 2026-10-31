@@ -1,0 +1,712 @@
+{% extends "base.html" %}
+
+{% block title %}Shelf &amp; Location Management - {{ library_name }}{% endblock %}
+{% block page_title %}Physical Shelf Infrastructure &amp; Book Assignment{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header with Quick Action Modals -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h4 class="fw-bold mb-1">Library Stacks &amp; Shelf Management</h4>
+            <p class="text-muted small mb-0">Configure physical library infrastructure, track shelf capacities, and assign books to exact positions.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary-custom btn-sm" data-bs-toggle="modal" data-bs-target="#assignBookModal">
+                <i class="bi bi-pin-map-fill me-1"></i> Assign Book to Shelf
+            </button>
+            <button class="btn btn-outline-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addShelfModal">
+                <i class="bi bi-plus-circle me-1"></i> Add Shelf
+            </button>
+            <button class="btn btn-outline-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addRackModal">
+                <i class="bi bi-grid-3x2 me-1"></i> Add Rack
+            </button>
+            <button class="btn btn-outline-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addRoomModal">
+                <i class="bi bi-door-open me-1"></i> Add Room
+            </button>
+            <button class="btn btn-outline-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addFloorModal">
+                <i class="bi bi-layers me-1"></i> Add Floor
+            </button>
+        </div>
+    </div>
+
+    <!-- 6 KPI Counter Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+            <div class="kpi-card p-3">
+                <div>
+                    <div class="kpi-value text-primary fs-3">{{ total_floors }}</div>
+                    <div class="kpi-label small">Total Floors</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-primary" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-layers-fill"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+            <div class="kpi-card p-3">
+                <div>
+                    <div class="kpi-value text-info fs-3">{{ total_sections }}</div>
+                    <div class="kpi-label small">Library Sections</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-info" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-bookmark-fill"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+            <div class="kpi-card p-3">
+                <div>
+                    <div class="kpi-value text-secondary fs-3">{{ total_racks }}</div>
+                    <div class="kpi-label small">Storage Racks</div>
+                </div>
+                <div class="kpi-icon-box" style="width: 44px; height: 44px; font-size: 1.25rem; background: rgba(100, 116, 139, 0.15); color: #475569;">
+                    <i class="bi bi-grid-3x2-gap"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+            <div class="kpi-card p-3">
+                <div>
+                    <div class="kpi-value text-dark fs-3">{{ total_shelves }}</div>
+                    <div class="kpi-label small">Total Shelves</div>
+                </div>
+                <div class="kpi-icon-box" style="width: 44px; height: 44px; font-size: 1.25rem; background: rgba(15, 23, 42, 0.1); color: #0f172a;">
+                    <i class="bi bi-bookshelf"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+            <div class="kpi-card p-3">
+                <div>
+                    <div class="kpi-value text-success fs-3">{{ total_located_books }}</div>
+                    <div class="kpi-label small">Located Copies</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-success" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-check2-all"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-xl-4 col-md-4 col-6">
+            <div class="kpi-card p-3">
+                <div>
+                    <div class="kpi-value {% if unassigned_books > 0 %}text-warning{% else %}text-success{% endif %} fs-3">{{ unassigned_books }}</div>
+                    <div class="kpi-label small">Unassigned Titles</div>
+                </div>
+                <div class="kpi-icon-box kpi-icon-warning" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-question-circle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <ul class="nav nav-pills mb-4 gap-2" id="shelvesTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active fw-bold px-4 py-2" id="shelvesListTabBtn" data-bs-toggle="pill" data-bs-target="#shelvesListTab" type="button">
+                <i class="bi bi-bookshelf me-1"></i> Shelves &amp; Capacity Ledger
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link fw-bold px-4 py-2" id="assignTabBtn" data-bs-toggle="pill" data-bs-target="#assignTab" type="button">
+                <i class="bi bi-pin-map-fill me-1"></i> Assign Books to Shelves
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link fw-bold px-4 py-2" id="infrastructureTabBtn" data-bs-toggle="pill" data-bs-target="#infrastructureTab" type="button">
+                <i class="bi bi-building me-1"></i> Floors, Sections &amp; Rooms
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link fw-bold px-4 py-2" id="placementsTabBtn" data-bs-toggle="pill" data-bs-target="#placementsTab" type="button">
+                <i class="bi bi-clock-history me-1"></i> Placed Copies &amp; Verification
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="shelvesTabContent">
+        <!-- 1. Shelves & Capacity Table -->
+        <div class="tab-pane fade show active" id="shelvesListTab" role="tabpanel">
+            <div class="card card-custom p-0 overflow-hidden">
+                <div class="p-3 border-bottom bg-light-subtle d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0">Library Shelves Directory &amp; Occupancy Gauges</h6>
+                    <span class="badge bg-primary">{{ shelves|length }} Shelves Active</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>Shelf Number</th>
+                                <th>Rack &amp; Room</th>
+                                <th>Floor &amp; Section</th>
+                                <th>Capacity</th>
+                                <th>Occupancy &amp; Free Space</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sh in shelves %}
+                            {% set occ = sh.occupancy_percent %}
+                            <tr>
+                                <td><span class="badge bg-primary fs-6">{{ sh.shelf_number }}</span></td>
+                                <td>
+                                    <strong>{{ sh.rack.rack_number }}</strong>
+                                    <div class="small text-muted">{{ sh.rack.room.room_number }} ({{ sh.rack.room.name }})</div>
+                                </td>
+                                <td>
+                                    <div>{{ sh.rack.room.floor.name }}</div>
+                                    <small class="text-secondary">{{ sh.rack.section.name if sh.rack.section else 'General' }}</small>
+                                </td>
+                                <td><strong>{{ sh.capacity }}</strong> max books</td>
+                                <td style="min-width: 200px;">
+                                    <div class="d-flex justify-content-between align-items-center small mb-1">
+                                        <span class="fw-bold text-dark">{{ sh.assigned_books_count }} Assigned</span>
+                                        <span class="{% if occ > 90 %}text-danger{% elif occ >= 70 %}text-warning{% else %}text-success{% endif %} fw-bold">
+                                            {{ sh.available_capacity }} Free Slots
+                                        </span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar {% if occ > 90 %}bg-danger{% elif occ >= 70 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ occ }}%;"></div>
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('locations.visual_map', floor=sh.rack.room.floor_id, room=sh.rack.room_id, rack=sh.rack_id, shelf=sh.id) }}" class="btn btn-outline-primary" title="View on Map">
+                                            <i class="bi bi-map"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editShelfModal{{ sh.id }}" title="Edit Shelf">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteShelfModal{{ sh.id }}" title="Delete Shelf">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- Edit Shelf Modal -->
+                                    <div class="modal fade" id="editShelfModal{{ sh.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered text-start">
+                                            <div class="modal-content border-0 shadow">
+                                                <div class="modal-header bg-primary text-white">
+                                                    <h5 class="modal-title">Edit Shelf {{ sh.shelf_number }}</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                                                    <input type="hidden" name="action" value="edit_shelf">
+                                                    <input type="hidden" name="id" value="{{ sh.id }}">
+                                                    <div class="modal-body p-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Shelf Number</label>
+                                                            <input type="text" name="shelf_number" class="form-control" value="{{ sh.shelf_number }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Max Capacity (Books)</label>
+                                                            <input type="number" name="capacity" class="form-control" value="{{ sh.capacity }}" min="1" max="200" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer bg-light">
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Delete Shelf Modal (Verifies if empty) -->
+                                    <div class="modal fade" id="deleteShelfModal{{ sh.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered text-start">
+                                            <div class="modal-content border-0 shadow">
+                                                <div class="modal-header bg-danger text-white">
+                                                    <h5 class="modal-title">Delete Shelf {{ sh.shelf_number }}</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                                                    <input type="hidden" name="action" value="delete_shelf">
+                                                    <input type="hidden" name="id" value="{{ sh.id }}">
+                                                    <div class="modal-body p-4">
+                                                        {% if sh.assigned_books_count > 0 %}
+                                                        <div class="alert alert-danger mb-0 small">
+                                                            <i class="bi bi-exclamation-octagon-fill me-1"></i> Cannot delete this shelf because it currently has <strong>{{ sh.assigned_books_count }} books assigned</strong>. You must reassign or remove the books before deleting.
+                                                        </div>
+                                                        {% else %}
+                                                        <p class="mb-0">Are you sure you want to delete empty shelf <strong>{{ sh.shelf_number }}</strong> on <strong>{{ sh.rack.rack_number }}</strong>? This action cannot be undone.</p>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="modal-footer bg-light">
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                        {% if sh.assigned_books_count == 0 %}
+                                                        <button type="submit" class="btn btn-danger btn-sm px-4">Confirm Delete</button>
+                                                        {% endif %}
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="6" class="text-center py-4 text-muted">No shelves created yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Assign Books Tab -->
+        <div class="tab-pane fade" id="assignTab" role="tabpanel">
+            <div class="card card-custom p-4 p-md-5">
+                <div class="d-flex align-items-center gap-3 border-bottom pb-3 mb-4">
+                    <div class="kpi-icon-box kpi-icon-primary">
+                        <i class="bi bi-pin-map-fill"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-1">Assign Physical Book Copy to a Shelf</h4>
+                        <p class="text-muted small mb-0">Record the exact floor, room, rack, shelf, and slot position for cataloged volumes.</p>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                    <input type="hidden" name="action" value="assign_book">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Select Book <span class="text-danger">*</span></label>
+                            <select name="book_id" class="form-select form-select-custom" required>
+                                <option value="" disabled selected>Choose Title...</option>
+                                {% for b in books %}
+                                <option value="{{ b.id }}">#{{ b.id }} - {{ b.title }} ({{ b.total_copies }} copies)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Physical Copy Number <span class="text-danger">*</span></label>
+                            <input type="number" name="copy_number" class="form-control form-control-custom" value="1" min="1" max="100" required>
+                            <small class="text-muted">Supports multiple distinct physical copies of the same title.</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Target Shelf Destination <span class="text-danger">*</span></label>
+                            <select name="shelf_id" class="form-select form-select-custom" required>
+                                <option value="" disabled selected>Select Shelf...</option>
+                                {% for sh in shelves %}
+                                <option value="{{ sh.id }}">
+                                    {{ sh.shelf_number }} ({{ sh.rack.rack_number }} &bull; {{ sh.rack.room.room_number }} &bull; {{ sh.rack.room.floor.name }}) - [{{ sh.available_capacity }} slots free]
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Exact Shelf Position Slot (e.g. B12, Pos-04)</label>
+                            <input type="text" name="position_code" class="form-control form-control-custom" placeholder="e.g. B12 or Row 1 Slot 4">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Inventory / Shelf Placement Notes</label>
+                            <textarea name="notes" class="form-control form-control-custom" rows="2" placeholder="e.g. Reference only, placed by Dr. Vance..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary-custom px-4">
+                            <i class="bi bi-check2-circle me-1"></i> Save Shelf Placement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 3. Infrastructure Tab (Floors, Sections & Rooms) -->
+        <div class="tab-pane fade" id="infrastructureTab" role="tabpanel">
+            <div class="row g-4">
+                <!-- Floors List -->
+                <div class="col-lg-4">
+                    <div class="card card-custom p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0 text-primary"><i class="bi bi-layers me-1"></i> Floors</h6>
+                            <button class="btn btn-xs btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addFloorModal">+ Add Floor</button>
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            {% for fl in floors %}
+                            <div class="p-2 border rounded bg-light-subtle d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block">{{ fl.name }}</strong>
+                                    <small class="text-muted">Level #{{ fl.floor_number }} &bull; {{ fl.rooms.count() }} Rooms</small>
+                                </div>
+                                <form method="POST" action="{{ url_for('locations.manage_shelves') }}" onsubmit="return confirm('Delete this floor?');">
+                                    <input type="hidden" name="action" value="delete_floor">
+                                    <input type="hidden" name="id" value="{{ fl.id }}">
+                                    <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sections List -->
+                <div class="col-lg-4">
+                    <div class="card card-custom p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0 text-info"><i class="bi bi-bookmark me-1"></i> Library Sections</h6>
+                            <button class="btn btn-xs btn-outline-info" data-bs-toggle="modal" data-bs-target="#addSectionModal">+ Add Section</button>
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            {% for sec in sections %}
+                            <div class="p-2 border rounded bg-light-subtle">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>{{ sec.name }}</strong>
+                                    <span class="badge bg-secondary">{{ sec.code }}</span>
+                                </div>
+                                <small class="text-muted d-block">{{ sec.floor.name }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rooms List -->
+                <div class="col-lg-4">
+                    <div class="card card-custom p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0 text-success"><i class="bi bi-door-open me-1"></i> Library Rooms</h6>
+                            <button class="btn btn-xs btn-outline-success" data-bs-toggle="modal" data-bs-target="#addRoomModal">+ Add Room</button>
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            {% for rm in rooms %}
+                            <div class="p-2 border rounded bg-light-subtle">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>{{ rm.room_number }}</strong>
+                                    <span class="badge bg-white text-dark border">{{ rm.racks.count() }} Racks</span>
+                                </div>
+                                <small class="text-muted d-block">{{ rm.name or 'Archival Room' }} &bull; {{ rm.floor.name }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Placements & Verification Tab -->
+        <div class="tab-pane fade" id="placementsTab" role="tabpanel">
+            <div class="card card-custom p-0 overflow-hidden">
+                <div class="p-3 border-bottom bg-light-subtle d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0">Recent Physical Placements &amp; Shelf Verifications</h6>
+                    <small class="text-muted">Confirm re-shelved books after return</small>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>Book Title</th>
+                                <th>Copy #</th>
+                                <th>Barcode</th>
+                                <th>Assigned Shelf Location</th>
+                                <th>Status</th>
+                                <th>Last Verified</th>
+                                <th class="text-end">Re-Shelve Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loc in locations %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('books.details', book_id=loc.book_id) }}" class="fw-bold text-dark text-decoration-none">{{ loc.book.title }}</a>
+                                </td>
+                                <td>Copy #{{ loc.copy_number }}</td>
+                                <td><code>{{ loc.barcode }}</code></td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ loc.full_location_display }}</span>
+                                </td>
+                                <td>
+                                    {% if loc.status == 'on_shelf' %}
+                                    <span class="badge-status badge-status-success">On Shelf</span>
+                                    {% elif loc.status == 'issued' %}
+                                    <span class="badge-status badge-status-danger">Checked Out</span>
+                                    {% else %}
+                                    <span class="badge-status badge-status-secondary">{{ loc.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted small">{{ loc.last_confirmed_at.strftime('%Y-%m-%d %H:%M') if loc.last_confirmed_at else 'Initial' }}</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('locations.confirm_reshelve', location_id=loc.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-check2-circle me-1"></i> Confirm on Shelf
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="7" class="text-center py-4 text-muted">No placement records found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODALS FOR SHELF MANAGEMENT
+     ========================================== -->
+
+<!-- Add Floor Modal -->
+<div class="modal fade" id="addFloorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-layers me-2"></i> Add New Floor</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                <input type="hidden" name="action" value="add_floor">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Floor Number (e.g. 0 for Ground, 1 for 1st) <span class="text-danger">*</span></label>
+                        <input type="number" name="floor_number" class="form-control" placeholder="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Floor Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Ground Floor - Main Stacks" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Description</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Purpose or departments on this level..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Create Floor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Section Modal -->
+<div class="modal fade" id="addSectionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-bookmark me-2"></i> Add Library Section</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                <input type="hidden" name="action" value="add_section">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Section Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Computer Science & Software" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Section Code <span class="text-danger">*</span></label>
+                        <input type="text" name="code" class="form-control" placeholder="e.g. SEC-CS" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Located On Floor <span class="text-danger">*</span></label>
+                        <select name="floor_id" class="form-select" required>
+                            {% for fl in floors %}
+                            <option value="{{ fl.id }}">{{ fl.name }} (Level #{{ fl.floor_number }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Description</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Subject classifications..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info btn-sm px-4 text-white">Create Section</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Room Modal -->
+<div class="modal fade" id="addRoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-door-open me-2"></i> Add Library Room</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                <input type="hidden" name="action" value="add_room">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Room Number / ID <span class="text-danger">*</span></label>
+                        <input type="text" name="room_number" class="form-control" placeholder="e.g. Room 101" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Room Name (Optional)</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Main Computing Archives">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Floor <span class="text-danger">*</span></label>
+                        <select name="floor_id" class="form-select" required>
+                            {% for fl in floors %}
+                            <option value="{{ fl.id }}">{{ fl.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Primary Section (Optional)</label>
+                        <select name="section_id" class="form-select">
+                            <option value="">General Purpose</option>
+                            {% for sec in sections %}
+                            <option value="{{ sec.id }}">{{ sec.name }} ({{ sec.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm px-4">Create Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Rack Modal -->
+<div class="modal fade" id="addRackModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-grid-3x2 me-2"></i> Add Storage Rack</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                <input type="hidden" name="action" value="add_rack">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Rack Number / Identifier <span class="text-danger">*</span></label>
+                        <input type="text" name="rack_number" class="form-control" placeholder="e.g. Rack R05" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Located In Room <span class="text-danger">*</span></label>
+                        <select name="room_id" class="form-select" required>
+                            {% for rm in rooms %}
+                            <option value="{{ rm.id }}">{{ rm.room_number }} ({{ rm.floor.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Section (Optional)</label>
+                        <select name="section_id" class="form-select">
+                            <option value="">Inherit from Room</option>
+                            {% for sec in sections %}
+                            <option value="{{ sec.id }}">{{ sec.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Description</label>
+                        <input type="text" name="description" class="form-control" placeholder="e.g. Software Architecture & Design">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark btn-sm px-4">Create Rack</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Shelf Modal -->
+<div class="modal fade" id="addShelfModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-bookshelf me-2"></i> Add Shelf to Rack</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                <input type="hidden" name="action" value="add_shelf">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Shelf Number <span class="text-danger">*</span></label>
+                        <input type="text" name="shelf_number" class="form-control" placeholder="e.g. Shelf S03" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Rack Unit <span class="text-danger">*</span></label>
+                        <select name="rack_id" class="form-select" required>
+                            {% for rk in racks %}
+                            <option value="{{ rk.id }}">{{ rk.rack_number }} ({{ rk.room.room_number }} &bull; {{ rk.room.floor.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Book Capacity <span class="text-danger">*</span></label>
+                        <input type="number" name="capacity" class="form-control" value="25" min="1" max="200" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Create Shelf</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Assign Book Modal -->
+<div class="modal fade" id="assignBookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-pin-map-fill me-2"></i> Assign Book Copy to Shelf</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('locations.manage_shelves') }}">
+                <input type="hidden" name="action" value="assign_book">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Select Book <span class="text-danger">*</span></label>
+                            <select name="book_id" class="form-select" required>
+                                {% for b in books %}
+                                <option value="{{ b.id }}">#{{ b.id }} - {{ b.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Copy Number <span class="text-danger">*</span></label>
+                            <input type="number" name="copy_number" class="form-control" value="1" min="1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Target Shelf <span class="text-danger">*</span></label>
+                            <select name="shelf_id" class="form-select" required>
+                                {% for sh in shelves %}
+                                <option value="{{ sh.id }}">{{ sh.shelf_number }} ({{ sh.rack.rack_number }} &bull; {{ sh.rack.room.room_number }}) - [{{ sh.available_capacity }} free]</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Position Slot (e.g. B12)</label>
+                            <input type="text" name="position_code" class="form-control" placeholder="e.g. B12">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Assign Location</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

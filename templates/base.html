@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - {{ library_name }}</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Custom Commercial CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    
+    <div class="app-container">
+        <!-- Sidebar Navigation (Only for Authenticated Users) -->
+        {% if current_user.is_authenticated %}
+        <aside class="app-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo-icon">
+                    <i class="bi bi-book-half"></i>
+                </div>
+                <div>
+                    <div class="sidebar-logo-text">{{ library_name|truncate(18, True, '...') }}</div>
+                    <small class="text-secondary" style="font-size: 0.7rem;">Digital Management</small>
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+                {% if current_user.role in ('admin', 'librarian') %}
+                    <div class="menu-category">Main Dashboard</div>
+                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link-custom {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+                        <i class="bi bi-grid-1x2-fill"></i> Dashboard
+                    </a>
+
+                    <div class="menu-category">Circulation Desk</div>
+                    <a href="{{ url_for('issues.issue_book') }}" class="nav-link-custom {% if request.endpoint == 'issues.issue_book' %}active{% endif %}">
+                        <i class="bi bi-box-arrow-up-right"></i> Issue Book
+                    </a>
+                    <a href="{{ url_for('issues.return_book') }}" class="nav-link-custom {% if request.endpoint == 'issues.return_book' %}active{% endif %}">
+                        <i class="bi bi-box-arrow-in-down-left"></i> Return Book
+                    </a>
+                    <a href="{{ url_for('issues.list_issues') }}" class="nav-link-custom {% if request.endpoint == 'issues.list_issues' %}active{% endif %}">
+                        <i class="bi bi-arrow-left-right"></i> Issue History
+                        {% if admin_pending_issues > 0 %}
+                            <span class="badge bg-danger nav-badge">{{ admin_pending_issues }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('reservations.list_reservations') }}" class="nav-link-custom {% if request.endpoint == 'reservations.list_reservations' %}active{% endif %}">
+                        <i class="bi bi-bookmark-star-fill"></i> Reservations
+                        {% if admin_pending_res > 0 %}
+                            <span class="badge bg-warning text-dark nav-badge">{{ admin_pending_res }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('fines.list_fines') }}" class="nav-link-custom {% if request.endpoint == 'fines.list_fines' %}active{% endif %}">
+                        <i class="bi bi-cash-stack"></i> Fines Management
+                    </a>
+
+                    <div class="menu-category">Catalog & Media</div>
+                    <a href="{{ url_for('books.list_books') }}" class="nav-link-custom {% if request.endpoint == 'books.list_books' %}active{% endif %}">
+                        <i class="bi bi-journal-album"></i> All Books
+                    </a>
+                    <a href="{{ url_for('books.add') }}" class="nav-link-custom {% if request.endpoint == 'books.add' %}active{% endif %}">
+                        <i class="bi bi-plus-circle-fill"></i> Add New Book
+                    </a>
+                    <a href="{{ url_for('books.categories') }}" class="nav-link-custom {% if request.endpoint == 'books.categories' %}active{% endif %}">
+                        <i class="bi bi-tags-fill"></i> Categories
+                    </a>
+                    <a href="{{ url_for('ebooks.list_ebooks') }}" class="nav-link-custom {% if request.endpoint == 'ebooks.list_ebooks' %}active{% endif %}">
+                        <i class="bi bi-file-earmark-pdf-fill"></i> Digital E-Books
+                    </a>
+
+                    <div class="menu-category">Smart Shelf &amp; Location</div>
+                    <a href="{{ url_for('locations.manage_shelves') }}" class="nav-link-custom {% if request.endpoint == 'locations.manage_shelves' %}active{% endif %}">
+                        <i class="bi bi-grid-3x3-gap-fill"></i> Shelf Management
+                    </a>
+                    <a href="{{ url_for('locations.visual_map') }}" class="nav-link-custom {% if request.endpoint == 'locations.visual_map' %}active{% endif %}">
+                        <i class="bi bi-map-fill"></i> Visual Shelf Map
+                    </a>
+                    <a href="{{ url_for('locations.find_book') }}" class="nav-link-custom {% if request.endpoint == 'locations.find_book' %}active{% endif %}">
+                        <i class="bi bi-geo-alt-fill"></i> Find Book Location
+                    </a>
+                    <a href="{{ url_for('locations.scan_location') }}" class="nav-link-custom {% if request.endpoint == 'locations.scan_location' %}active{% endif %}">
+                        <i class="bi bi-qr-code-scan"></i> Scan &amp; Locate
+                    </a>
+
+                    <div class="menu-category">User Management</div>
+                    <a href="{{ url_for('students.list_students') }}" class="nav-link-custom {% if request.endpoint in ('students.list_students', 'students.add') %}active{% endif %}">
+                        <i class="bi bi-mortarboard-fill"></i> Students
+                    </a>
+                    {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('admin.librarians') }}" class="nav-link-custom {% if request.endpoint == 'admin.librarians' %}active{% endif %}">
+                        <i class="bi bi-person-badge-fill"></i> Librarians
+                    </a>
+                    <a href="{{ url_for('reports.index') }}" class="nav-link-custom {% if request.endpoint == 'reports.index' %}active{% endif %}">
+                        <i class="bi bi-bar-chart-line-fill"></i> Reports & Analytics
+                    </a>
+                    <a href="{{ url_for('admin.activity_logs') }}" class="nav-link-custom {% if request.endpoint == 'admin.activity_logs' %}active{% endif %}">
+                        <i class="bi bi-clock-history"></i> Activity Logs
+                    </a>
+                    <a href="{{ url_for('admin.settings') }}" class="nav-link-custom {% if request.endpoint == 'admin.settings' %}active{% endif %}">
+                        <i class="bi bi-gear-fill"></i> System Settings
+                    </a>
+                    {% endif %}
+
+                {% elif current_user.role == 'student' %}
+                    <div class="menu-category">Student Portal</div>
+                    <a href="{{ url_for('student.dashboard') }}" class="nav-link-custom {% if request.endpoint == 'student.dashboard' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i> My Dashboard
+                    </a>
+                    <a href="{{ url_for('student.my_books') }}" class="nav-link-custom {% if request.endpoint == 'student.my_books' %}active{% endif %}">
+                        <i class="bi bi-book"></i> Borrowed & Reserved
+                    </a>
+                    <a href="{{ url_for('books.list_books') }}" class="nav-link-custom {% if request.endpoint == 'books.list_books' %}active{% endif %}">
+                        <i class="bi bi-search"></i> Browse Library Catalog
+                    </a>
+
+                    <div class="menu-category">Book Location &amp; Shelves</div>
+                    <a href="{{ url_for('locations.find_book') }}" class="nav-link-custom {% if request.endpoint == 'locations.find_book' %}active{% endif %}">
+                        <i class="bi bi-geo-alt-fill"></i> Find Book Location
+                    </a>
+                    <a href="{{ url_for('locations.visual_map') }}" class="nav-link-custom {% if request.endpoint == 'locations.visual_map' %}active{% endif %}">
+                        <i class="bi bi-map-fill"></i> Library Shelf Map
+                    </a>
+                    <a href="{{ url_for('locations.scan_location') }}" class="nav-link-custom {% if request.endpoint == 'locations.scan_location' %}active{% endif %}">
+                        <i class="bi bi-qr-code-scan"></i> Scan QR to Locate
+                    </a>
+
+                    <div class="menu-category">Digital &amp; Activity</div>
+                    <a href="{{ url_for('student.recommendations') }}" class="nav-link-custom {% if request.endpoint == 'student.recommendations' %}active{% endif %}">
+                        <i class="bi bi-stars text-warning"></i> AI Recommendations
+                    </a>
+                    <a href="{{ url_for('ebooks.list_ebooks') }}" class="nav-link-custom {% if request.endpoint == 'ebooks.list_ebooks' %}active{% endif %}">
+                        <i class="bi bi-file-earmark-pdf"></i> E-Book Library
+                    </a>
+                    <a href="{{ url_for('student.history') }}" class="nav-link-custom {% if request.endpoint == 'student.history' %}active{% endif %}">
+                        <i class="bi bi-hourglass-split"></i> Borrowing History
+                    </a>
+                    <a href="{{ url_for('student.fines') }}" class="nav-link-custom {% if request.endpoint == 'student.fines' %}active{% endif %}">
+                        <i class="bi bi-receipt"></i> Fines & Dues
+                    </a>
+                    <a href="{{ url_for('students.id_card', student_id=current_user.raw_id) }}" class="nav-link-custom">
+                        <i class="bi bi-person-vcard-fill"></i> My Library ID Card
+                    </a>
+                    <a href="{{ url_for('student.profile') }}" class="nav-link-custom {% if request.endpoint == 'student.profile' %}active{% endif %}">
+                        <i class="bi bi-person-circle"></i> Profile & Password
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger w-100 btn-sm d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-box-arrow-right"></i> Sign Out
+                </a>
+            </div>
+        </aside>
+        {% endif %}
+
+        <!-- Main Wrapper -->
+        <main class="app-main {% if not current_user.is_authenticated %}m-0{% endif %}">
+            <!-- Top Navigation Bar -->
+            <header class="app-topbar">
+                <div class="topbar-left">
+                    {% if current_user.is_authenticated %}
+                    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Navigation">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    {% else %}
+                    <a href="{{ url_for('index') }}" class="d-flex align-items-center gap-2 text-decoration-none">
+                        <div class="sidebar-logo-icon" style="width: 34px; height: 34px; font-size: 1rem;">
+                            <i class="bi bi-book-half"></i>
+                        </div>
+                        <span class="fw-bold text-dark fs-5">{{ library_name }}</span>
+                    </a>
+                    {% endif %}
+                    <h5 class="topbar-title d-none d-md-block">{% block page_title %}{% endblock %}</h5>
+                </div>
+
+                <div class="topbar-right">
+                    <!-- Global Search Quick Shortcut -->
+                    <form action="{{ url_for('books.list_books') }}" method="GET" class="d-none d-lg-flex position-relative" style="width: 250px;">
+                        <input type="text" name="q" class="form-control form-control-sm form-control-custom ps-4" placeholder="Search books, ISBN, author...">
+                        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2 text-muted" style="font-size: 0.85rem;"></i>
+                    </form>
+
+                    <!-- Quick Find Shelf Pill -->
+                    <a href="{{ url_for('locations.find_book') }}" class="btn btn-outline-primary btn-sm d-none d-xl-flex align-items-center gap-1 rounded-pill px-3" title="Locate book shelf">
+                        <i class="bi bi-geo-alt-fill text-danger"></i>
+                        <span>Find Shelf</span>
+                    </a>
+
+                    <!-- Theme Toggle -->
+                    <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Light / Dark Mode">
+                        <i class="bi bi-moon-stars-fill"></i>
+                    </button>
+
+                    {% if current_user.is_authenticated %}
+                    <!-- Notifications Dropdown -->
+                    <div class="dropdown">
+                        <button class="notif-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                            <i class="bi bi-bell-fill"></i>
+                            {% if unread_notif_count > 0 %}
+                            <span class="notif-badge">{{ unread_notif_count }}</span>
+                            {% endif %}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2" style="width: 320px; border-radius: var(--radius-md);">
+                            <li class="d-flex justify-content-between align-items-center px-2 py-1 mb-2 border-bottom">
+                                <span class="fw-bold small">Notifications</span>
+                                {% if unread_notif_count > 0 %}
+                                <span class="badge bg-primary rounded-pill">{{ unread_notif_count }} New</span>
+                                {% endif %}
+                            </li>
+                            {% if current_user.role == 'student' %}
+                            <li>
+                                <a class="dropdown-item small text-center text-primary py-2" href="{{ url_for('student.notifications') }}">
+                                    View All Notifications &rarr;
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="px-2 py-2 text-center text-muted small">
+                                Notifications are synced with issues and overdue returns.
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+
+                    <!-- User Profile Dropdown -->
+                    <div class="dropdown">
+                        <div class="user-profile-pill" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="{{ url_for('static', filename='images/default_avatar.png') }}" alt="Avatar" class="user-avatar">
+                            <div class="user-info-text d-none d-sm-block">
+                                <span class="user-name-label">{{ current_user.name|truncate(15, True, '...') }}</span>
+                                <span class="user-role-badge badge bg-primary-subtle text-primary">{{ current_user.role|capitalize }}</span>
+                            </div>
+                            <i class="bi bi-chevron-down text-muted small ms-1"></i>
+                        </div>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2" style="border-radius: var(--radius-md); min-width: 200px;">
+                            <li class="px-3 py-2 border-bottom mb-1">
+                                <div class="fw-bold">{{ current_user.name }}</div>
+                                <small class="text-muted">{{ current_user.email }}</small>
+                            </li>
+                            {% if current_user.role == 'student' %}
+                            <li>
+                                <a class="dropdown-item py-2" href="{{ url_for('student.profile') }}">
+                                    <i class="bi bi-person me-2"></i> My Profile
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{{ url_for('students.id_card', student_id=current_user.raw_id) }}">
+                                    <i class="bi bi-person-vcard me-2"></i> Library ID Card
+                                </a>
+                            </li>
+                            {% elif current_user.role == 'admin' %}
+                            <li>
+                                <a class="dropdown-item py-2" href="{{ url_for('admin.settings') }}">
+                                    <i class="bi bi-sliders me-2"></i> System Settings
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item py-2 text-danger" href="{{ url_for('auth.logout') }}">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Sign Out
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {% else %}
+                    <!-- Guest Navigation Buttons -->
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm px-3 fw-bold">Sign In</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm px-3 fw-bold">Register</a>
+                    {% endif %}
+                </div>
+            </header>
+
+            <!-- Alerts / Flash Messages Container -->
+            <div class="container-fluid px-4 pt-3 no-print">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show d-flex align-items-center shadow-sm" role="alert">
+                                <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                                <div>{{ message }}</div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Page Body Content Block -->
+            <div class="app-content">
+                {% block content %}{% endblock %}
+            </div>
+
+            <!-- Standard App Footer -->
+            <footer class="app-footer no-print">
+                <div>
+                    &copy; {{ current_year }} <strong>{{ library_name }}</strong>. All rights reserved.
+                </div>
+                <div class="d-none d-sm-block text-muted">
+                    Designed with Python Flask, MySQL, Bootstrap 5 &amp; Chart.js
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Reusable Confirmation Modal -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i> Confirm Action</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="mb-0">Are you sure you want to delete <strong id="deleteItemName" class="text-danger">this item</strong>? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteForm" method="POST" action="">
+                        <button type="submit" class="btn btn-danger btn-sm px-4">Confirm Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5.3 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <!-- HTML5 QR Code Scanner -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/qr_scanner.js') }}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

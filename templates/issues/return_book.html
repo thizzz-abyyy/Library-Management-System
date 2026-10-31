@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Return Book - {{ library_name }}{% endblock %}
+{% block page_title %}Circulation Counter - Return Book{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-9">
+        <div class="card card-custom p-4 p-md-5">
+            <!-- Header with Scanner Button -->
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="kpi-icon-box kpi-icon-success">
+                        <i class="bi bi-box-arrow-in-down-left"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-1">Check-In Returned Book</h4>
+                        <p class="text-muted small mb-0">Scan book QR code or lookup issue code to close loan.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#qrScannerModal" onclick="initScanner()">
+                    <i class="bi bi-qr-code-scan me-1"></i> Scan with Camera
+                </button>
+            </div>
+
+            <!-- Quick Lookup Bar -->
+            <div class="mb-4">
+                <label class="form-label small fw-bold">Search Loan by Issue Code, Book QR, or Student ID</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control form-control-custom" id="lookupCodeInput" placeholder="e.g. ISS-2026-0001 or scan QR code" value="{{ issue.issue_code if issue else '' }}" autocomplete="off">
+                    <button type="button" class="btn btn-primary" onclick="lookupIssue()">Lookup Loan</button>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('issues.return_book') }}" id="returnForm">
+                <input type="hidden" name="issue_id" id="hiddenIssueId" value="{{ issue.id if issue else '' }}">
+
+                <!-- Loan Details Panel -->
+                <div id="issueDetailsCard" class="p-4 rounded-3 border mb-4 {% if not issue %}d-none{% endif %}" style="background-color: var(--bg-surface-hover);">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge bg-primary fs-6" id="dispIssueCode">{{ issue.issue_code if issue else '' }}</span>
+                        <span class="badge" id="dispOverdueBadge">
+                            {% if issue and issue.is_overdue %}
+                            <span class="badge bg-danger">{{ issue.overdue_days }} Days Overdue</span>
+                            {% elif issue %}
+                            <span class="badge bg-success">On Schedule</span>
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Book Title</small>
+                            <span class="fw-bold fs-6" id="dispBookTitle">{{ issue.book.title if issue else '' }}</span>
+                            <div class="small text-muted" id="dispBookIsbn">ISBN: {{ issue.book.isbn if issue else '' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Student Borrower</small>
+                            <span class="fw-bold fs-6" id="dispStudentName">{{ issue.student.name if issue else '' }}</span>
+                            <div class="small text-muted" id="dispStudentId">ID: {{ issue.student.student_id if issue else '' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">Issue Date</small>
+                            <span class="fw-bold" id="dispIssueDate">{{ issue.issue_date.strftime('%Y-%m-%d') if issue else '' }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">Scheduled Due Date</small>
+                            <span class="fw-bold" id="dispDueDate">{{ issue.due_date.strftime('%Y-%m-%d') if issue else '' }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">Late Fee Fine</small>
+                            <span class="fw-bold text-danger fs-5" id="dispCalculatedFine">
+                                {% if issue %}
+                                {{ currency }}{{ "%.2f"|format(issue.overdue_days * fine_rate) }}
+                                {% else %}
+                                {{ currency }}0.00
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        <!-- Physical Location Breadcrumb for Re-Shelving -->
+                        <div class="col-12 mt-3 pt-3 border-top">
+                            <div class="p-3 rounded-3 border bg-info-subtle border-info-subtle">
+                                <div class="small fw-bold text-primary mb-1">
+                                    <i class="bi bi-geo-alt-fill me-1"></i> Physical Shelf Location for Re-Shelving:
+                                </div>
+                                <div class="fw-bold fs-6 text-dark" id="dispShelfLocation">
+                                    {{ issue.book.primary_location_display if issue else '' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Physical Re-Shelving Confirmation -->
+                <div class="form-check p-3 bg-light rounded-3 border mb-4">
+                    <input class="form-check-input ms-0 me-2" type="checkbox" name="confirm_shelf_placement" id="confirmShelfPlacement" checked>
+                    <label class="form-check-label fw-bold small text-dark" for="confirmShelfPlacement">
+                        <i class="bi bi-check2-circle text-success me-1"></i> Confirm Physical Shelf Placement (Book placed back on assigned shelf)
+                    </label>
+                    <small class="text-muted d-block ms-4">Updates physical inventory location status to "On Shelf" with current librarian timestamp.</small>
+                </div>
+
+                <!-- Fine Settlement Options (Shown if overdue) -->
+                <div id="fineSettlementSection" class="p-3 bg-light rounded-3 border mb-4 {% if not (issue and issue.overdue_days > 0) %}d-none{% endif %}">
+                    <h6 class="fw-bold text-danger mb-2"><i class="bi bi-cash-stack me-1"></i> Overdue Fine Settlement</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Settlement Option</label>
+                            <select name="fine_action" class="form-select form-select-sm" id="fineActionSelect">
+                                <option value="paid">Collect Payment Now (Paid)</option>
+                                <option value="pending" selected>Record as Pending Due on Student Account</option>
+                                <option value="waive">Waive Fine (Administrative Exemption)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="paymentMethodGroup">
+                            <label class="form-label small fw-bold">Payment Method</label>
+                            <select name="payment_method" class="form-select form-select-sm">
+                                <option value="Cash">Cash at Counter</option>
+                                <option value="Card">Credit / Debit Card</option>
+                                <option value="Online">Online Campus Portal</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Condition Notes -->
+                <div class="mb-4">
+                    <label class="form-label small fw-bold">Book Return Condition / Inspection Notes</label>
+                    <textarea name="condition_notes" class="form-control form-control-custom" rows="2" placeholder="e.g. Good condition, normal wear, minor spine crease..."></textarea>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                    <a href="{{ url_for('issues.list_issues') }}" class="btn btn-outline-custom">Cancel</a>
+                    <button type="submit" class="btn btn-success px-4 fw-bold" id="confirmReturnBtn" {% if not issue %}disabled{% endif %}>
+                        <i class="bi bi-box-arrow-in-down-left me-1"></i> Confirm Book Return
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- QR Camera Scanner Modal -->
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-camera-fill me-2"></i> Scan Book QR / Barcode</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="stopCameraScanner()"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div id="cameraErrorMessage" class="alert alert-warning d-none small"></div>
+                <div id="qrReaderViewport" style="width: 100%; min-height: 280px; background: #000; border-radius: 8px; overflow: hidden;"></div>
+                <small class="text-muted d-block mt-3">Scan the book QR code to automatically locate active checkout loan.</small>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" onclick="stopCameraScanner()">Close Scanner</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function initScanner() {
+    startCameraScanner('qrReaderViewport', function(decodedText) {
+        console.log("Scan:", decodedText);
+        const parsed = parseQrPayload(decodedText);
+        const code = parsed.isbn || parsed.id || decodedText;
+        document.getElementById('lookupCodeInput').value = code;
+        lookupIssue();
+        
+        const modalEl = document.getElementById('qrScannerModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    });
+}
+
+function lookupIssue() {
+    const code = document.getElementById('lookupCodeInput').value.trim();
+    if (!code) return;
+
+    fetch(`/issues/api/lookup?code=${encodeURIComponent(code)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.found && data.type === 'issue') {
+                const iss = data.issue;
+                document.getElementById('hiddenIssueId').value = iss.id;
+                document.getElementById('dispIssueCode').textContent = iss.issue_code;
+                document.getElementById('dispBookTitle').textContent = iss.book_title;
+                document.getElementById('dispBookIsbn').textContent = `ISBN: ${iss.book_isbn}`;
+                document.getElementById('dispStudentName').textContent = iss.student_name;
+                document.getElementById('dispStudentId').textContent = `ID: ${iss.student_id}`;
+                document.getElementById('dispIssueDate').textContent = iss.issue_date;
+                document.getElementById('dispDueDate').textContent = iss.due_date;
+                document.getElementById('dispCalculatedFine').textContent = `$${parseFloat(iss.calculated_fine).toFixed(2)}`;
+                document.getElementById('dispShelfLocation').textContent = iss.location_display || 'Main Reading Hall';
+
+                const badge = document.getElementById('dispOverdueBadge');
+                const fineSec = document.getElementById('fineSettlementSection');
+                if (iss.overdue_days > 0) {
+                    badge.innerHTML = `<span class="badge bg-danger">${iss.overdue_days} Days Overdue</span>`;
+                    fineSec.classList.remove('d-none');
+                } else {
+                    badge.innerHTML = `<span class="badge bg-success">On Schedule</span>`;
+                    fineSec.classList.add('d-none');
+                }
+
+                document.getElementById('issueDetailsCard').classList.remove('d-none');
+                document.getElementById('confirmReturnBtn').disabled = false;
+            } else if (data.found && data.type === 'student') {
+                alert(`Student found: ${data.student.name}. Please select one of their ${data.student.active_issues.length} active issues.`);
+            } else {
+                alert(data.message || 'No active borrowing loan found for this item.');
+            }
+        });
+}
+</script>
+{% endblock %}
+

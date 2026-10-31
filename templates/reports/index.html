@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Reports &amp; Analytics - {{ library_name }}{% endblock %}
+{% block page_title %}Comprehensive Institutional Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Filter & Report Selection Toolbar (Hidden on Print) -->
+    <div class="card card-custom p-4 mb-4 no-print">
+        <form method="GET" action="{{ url_for('reports.index') }}" class="row g-3 align-items-end">
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label small fw-bold">Select Report Type</label>
+                <select name="type" class="form-select form-select-custom" onchange="this.form.submit()">
+                    <option value="books" {% if report_type == 'books' %}selected{% endif %}>📚 Total Books &amp; Inventory Report</option>
+                    <option value="students" {% if report_type == 'students' %}selected{% endif %}>🎓 Registered Students Report</option>
+                    <option value="issues" {% if report_type == 'issues' %}selected{% endif %}>📤 Book Issue Transactions</option>
+                    <option value="returns" {% if report_type == 'returns' %}selected{% endif %}>📥 Book Return Transactions</option>
+                    <option value="overdue" {% if report_type == 'overdue' %}selected{% endif %}>⚠️ Overdue Loans &amp; Delinquency</option>
+                    <option value="fines" {% if report_type == 'fines' %}selected{% endif %}>💰 Fine Collections &amp; Dues</option>
+                    <option value="popular" {% if report_type == 'popular' %}selected{% endif %}>🔥 Popular Books &amp; Demand</option>
+                </select>
+            </div>
+            <div class="col-lg-3 col-md-3">
+                <label class="form-label small fw-bold">Start Date</label>
+                <input type="date" name="start_date" class="form-control form-control-custom" value="{{ start_date }}">
+            </div>
+            <div class="col-lg-3 col-md-3">
+                <label class="form-label small fw-bold">End Date</label>
+                <input type="date" name="end_date" class="form-control form-control-custom" value="{{ end_date }}">
+            </div>
+            <div class="col-lg-3 col-md-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary-custom flex-grow-1">
+                    <i class="bi bi-filter"></i> Generate
+                </button>
+                <button type="button" onclick="window.print()" class="btn btn-outline-custom" title="Print Report">
+                    <i class="bi bi-printer"></i> Print
+                </button>
+                <a href="{{ url_for('reports.index', type=report_type, start_date=start_date, end_date=end_date, export='csv') }}" class="btn btn-success" title="Download CSV">
+                    <i class="bi bi-file-earmark-excel"></i> CSV
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Official Report Document View (Print Friendly) -->
+    <div class="card card-custom p-4 p-md-5">
+        <!-- Report Header for Print & Display -->
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+            <div>
+                <h3 class="fw-bold mb-1 text-primary">{{ library_name }}</h3>
+                <h5 class="fw-bold text-dark mb-1">{{ report_title }}</h5>
+                <small class="text-muted">Generated on: {{ generated_at }}</small>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-primary fs-6 px-3 py-2 rounded-pill">{{ records|length }} Records Found</span>
+                {% if start_date or end_date %}
+                <div class="small text-muted mt-1">Period: {{ start_date or 'Beginning' }} to {{ end_date or 'Present' }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Report Table -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover mb-0" style="font-size: 0.88rem;">
+                <thead class="table-dark">
+                    <tr>
+                        {% for col in headers %}
+                        <th class="py-2 px-3">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in records %}
+                    <tr>
+                        {% for cell in row %}
+                        <td class="py-2 px-3">{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ headers|length }}" class="text-center py-4 text-muted">No records found matching the specified parameters.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sign-off Footer on Print -->
+        <div class="d-none d-print-block mt-5 pt-5 border-top">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <div>Prepared by: __________________________</div>
+                    <small>Circulation Department</small>
+                </div>
+                <div>
+                    <div>Approved by: __________________________</div>
+                    <small>Chief University Librarian</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
