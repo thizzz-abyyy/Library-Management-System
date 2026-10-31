@@ -43,3 +43,5 @@ uploads/ebooks/*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+.vercel
