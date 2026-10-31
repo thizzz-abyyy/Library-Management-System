@@ -99,6 +99,8 @@ def create_app(config_class=Config):
 
     # Public Landing Page / Catalog Explorer
     @app.route('/')
+    @app.route('/api/index')
+    @app.route('/api/index/')
     def index():
         if current_user.is_authenticated:
             return redirect(url_for('auth.dashboard_redirect'))
@@ -147,6 +149,10 @@ def create_app(config_class=Config):
     @app.route('/find-book')
     def find_book_alias():
         return redirect(url_for('locations.find_book'))
+
+    @app.route('/api/index/<path:subpath>')
+    def api_index_subpath_alias(subpath):
+        return redirect('/' + subpath)
 
     # Error Handlers
     @app.errorhandler(404)
