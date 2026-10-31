@@ -154,6 +154,11 @@ def create_app(config_class=Config):
     def api_index_subpath_alias(subpath):
         return redirect('/' + subpath)
 
+    @app.route('/debug-env')
+    def debug_env():
+        env_subset = {k: str(v) for k, v in request.environ.items() if k.startswith(('HTTP_', 'REQUEST_', 'PATH_', 'SERVER_'))}
+        return jsonify(env_subset)
+
     # Error Handlers
     @app.errorhandler(404)
     def not_found_error(error):
