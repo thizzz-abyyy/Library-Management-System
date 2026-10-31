@@ -1,6 +1,7 @@
 import os
+from pathlib import Path
 from datetime import datetime
-from flask import Flask, render_template, redirect, url_for, send_from_directory, request, flash, jsonify
+from flask import Flask, render_template, redirect, url_for, send_from_directory, send_file, request, flash, jsonify
 from flask_login import LoginManager, current_user
 from config import Config
 from models import db
@@ -83,19 +84,75 @@ def create_app(config_class=Config):
             current_year=datetime.utcnow().year
         )
 
-    # Route for serving uploaded files securely (supports local repo and serverless /tmp)
+    # Route for serving uploaded files securely (supports local repo, serverless /tmp, and on-demand QR code generation)
     @app.route('/uploads/<path:filename>')
     def uploaded_file(filename):
+        # 1. Check serverless /tmp upload folder
         target = Path(app.config['UPLOAD_FOLDER']) / filename
         if target.exists():
             return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+        # 2. Check committed repository upload folder
         repo_upload = Path(__file__).resolve().parent / 'uploads' / filename
         if repo_upload.exists():
             return send_from_directory(repo_upload.parent, repo_upload.name)
-        # Fallback to default asset if file not found
+
+        # 3. Dynamic QR code generator fallback (Essential for cloud/serverless hosting)
+        if 'qr' in filename.lower():
+            try:
+                import io
+                import qrcode
+
+                qr_payload = f"APEX-LIBRARY-{filename}"
+                clean_name = Path(filename).stem
+                parts = clean_name.split('_')
+
+                if 'book' in clean_name and len(parts) >= 3:
+                    book_id_str = parts[2]
+                    if book_id_str.isdigit():
+                        from models.models import Book
+                        bk = Book.query.get(int(book_id_str))
+                        if bk:
+                            loc_info = bk.primary_location_display if hasattr(bk, 'primary_location_display') else (bk.shelf_location or 'Main')
+                            qr_payload = f"BOOK|ID:{bk.id}|ISBN:{bk.isbn}|TITLE:{bk.title}|LOC:{loc_info}"
+                elif 'stu' in clean_name and len(parts) >= 3:
+                    stu_id_str = parts[2]
+                    from models.models import Student
+                    st = Student.query.filter((Student.student_id == stu_id_str) | (Student.id == (int(stu_id_str) if stu_id_str.isdigit() else 0))).first()
+                    if st:
+                        qr_payload = f"STUDENT|ID:{st.student_id}|NAME:{st.name}|DEPT:{st.department}"
+
+                qr = qrcode.QRCode(
+                    version=1,
+                    error_correction=qrcode.constants.ERROR_CORRECT_M,
+                    box_size=10,
+                    border=2
+                )
+                qr.add_data(qr_payload)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="#1d4ed8", back_color="white")
+
+                # Save to /tmp upload cache if possible
+                try:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    img.save(str(target))
+                except Exception:
+                    pass
+
+                buf = io.BytesIO()
+                img.save(buf, format='PNG')
+                buf.seek(0)
+                return send_file(buf, mimetype='image/png')
+            except Exception as e:
+                print(f"[Dynamic QR Fallback Note] {e}")
+
+        # 4. Fallback to appropriate static default image
+        static_img_dir = Path(__file__).resolve().parent / 'static' / 'images'
+        if 'ebook' in filename.lower() and (static_img_dir / 'default_ebook_cover.png').exists():
+            return send_from_directory(static_img_dir, 'default_ebook_cover.png')
         if 'cover' in filename.lower() or 'book' in filename.lower():
-            return send_from_directory(Path(__file__).resolve().parent / 'static' / 'images', 'default_book_cover.png')
-        return send_from_directory(Path(__file__).resolve().parent / 'static' / 'images', 'default_avatar.png')
+            return send_from_directory(static_img_dir, 'default_book_cover.png')
+        return send_from_directory(static_img_dir, 'default_avatar.png')
 
     # Public Landing Page / Catalog Explorer
     @app.route('/')

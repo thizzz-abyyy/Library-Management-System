@@ -34,8 +34,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 2. Mobile Responsive Sidebar Toggle
     const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+    const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
     const appSidebar = document.querySelector('.app-sidebar');
     const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+    function closeMobileSidebar() {
+        if (appSidebar) appSidebar.classList.remove('show');
+        if (sidebarBackdrop) sidebarBackdrop.classList.remove('show');
+    }
 
     if (sidebarToggleBtn && appSidebar) {
         sidebarToggleBtn.addEventListener('click', function () {
@@ -46,12 +52,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    if (sidebarBackdrop) {
-        sidebarBackdrop.addEventListener('click', function () {
-            appSidebar.classList.remove('show');
-            sidebarBackdrop.classList.remove('show');
-        });
+    if (sidebarCloseBtn) {
+        sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
     }
+
+    if (sidebarBackdrop) {
+        sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+    }
+
+    // Auto-close sidebar on mobile when navigating
+    const navLinks = document.querySelectorAll('.nav-link-custom');
+    navLinks.forEach(function (link) {
+        link.addEventListener('click', function () {
+            if (window.innerWidth < 992) {
+                closeMobileSidebar();
+            }
+        });
+    });
 
     // 3. Auto-Dismiss Flash Alerts after 5 seconds
     const alerts = document.querySelectorAll('.alert-dismissible');
