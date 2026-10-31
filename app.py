@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Flask, render_template, redirect, url_for, send_from_directory, request, flash
+from flask import Flask, render_template, redirect, url_for, send_from_directory, request, flash, jsonify
 from flask_login import LoginManager, current_user
 from config import Config
 from models import db
@@ -150,9 +150,12 @@ def create_app(config_class=Config):
     def find_book_alias():
         return redirect(url_for('locations.find_book'))
 
-    @app.route('/api/index/<path:subpath>')
+    @app.route('/api/index/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE'])
     def api_index_subpath_alias(subpath):
-        return redirect('/' + subpath)
+        target = '/' + subpath
+        if request.query_string:
+            target += '?' + request.query_string.decode('utf-8')
+        return redirect(target, code=307 if request.method in ('POST', 'PUT') else 302)
 
     @app.route('/debug-env')
     def debug_env():
